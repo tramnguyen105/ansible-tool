@@ -1,0 +1,17 @@
+[Unit]
+Description=Ansible Automation Console Celery Worker
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=ansibletool
+Group=ansibletool
+WorkingDirectory=/opt/ansible-tool/backend
+EnvironmentFile=/etc/ansible-tool/backend.env
+ExecStart=/opt/ansible-tool/.venv/bin/celery -A app.celery_app worker --loglevel=INFO --concurrency=2
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

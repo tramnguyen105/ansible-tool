@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', 'IBM Plex Sans', sans-serif;
+  background: #0d1622;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(41, 64, 93, 0.95);
+  background: rgba(15, 23, 35, 0.85);
+  color: #e7eff7;
+  padding: 0.8rem 0.95rem;
+}
+
+textarea {
+  min-height: 120px;
+}
+
+button {
+  color: inherit;
+}
+
+.btn-primary {
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #2b8ea1 0%, #3569a9 100%);
+  padding: 0.75rem 1.1rem;
+  color: white;
+}
+
+.btn-secondary {
+  border-radius: 9999px;
+  border: 1px solid rgba(41, 64, 93, 0.95);
+  padding: 0.75rem 1.1rem;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #99adc2;
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=Ansible Automation Console Backend
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=ansibletool
+Group=ansibletool
+WorkingDirectory=/opt/ansible-tool/backend
+EnvironmentFile=/etc/ansible-tool/backend.env
+ExecStart=/opt/ansible-tool/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
