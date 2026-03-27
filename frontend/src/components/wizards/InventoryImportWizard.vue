@@ -1,36 +1,47 @@
 <template>
-  <DrawerPanel :open="open" title="Import Inventory" @close="$emit('close')">
+  <DrawerPanel :open="open" title="Import Inventory" @close="emitClose">
     <div class="space-y-6">
       <div class="rounded-2xl border border-console-edge bg-console-panel/50 p-4 text-sm text-console-muted">
         Step {{ step }} of 2. Upload an INI, YAML, CSV, or Excel file, review the normalized result, then commit it into the inventory database.
       </div>
+
       <div v-if="step === 1" class="space-y-4">
         <div>
           <label class="field-label">Source Format</label>
-          <select v-model="format">
+          <select v-model="format" :disabled="isPreviewing">
             <option value="ini">INI</option>
             <option value="yaml">YAML</option>
             <option value="csv">CSV</option>
             <option value="excel">Excel</option>
           </select>
         </div>
+
         <div>
           <label class="field-label">File</label>
-          <input type="file" @change="onFileChange" />
+          <input type="file" :disabled="isPreviewing" @change="onFileChange" />
+          <p class="mt-2 text-xs text-console-muted">Use preview first so operators can inspect normalized hosts, groups, and warnings before anything is committed.</p>
         </div>
-        <button class="btn-primary" @click="preview">Generate Preview</button>
+
+        <div class="flex items-center gap-3">
+          <button class="btn-primary" :disabled="isPreviewing || !file" @click="preview">
+            {{ isPreviewing ? 'Generating preview...' : 'Generate Preview' }}
+          </button>
+          <span v-if="selectedFileLabel" class="text-sm text-console-muted">{{ selectedFileLabel }}</span>
+        </div>
       </div>
+
       <div v-else class="space-y-4">
         <div class="grid gap-4 md:grid-cols-2">
           <div>
             <label class="field-label">Inventory Name</label>
-            <input v-model="name" />
+            <input v-model="name" :disabled="isImporting" />
           </div>
           <div>
             <label class="field-label">Description</label>
-            <input v-model="description" />
+            <input v-model="description" :disabled="isImporting" />
           </div>
         </div>
+
         <div class="grid gap-4 md:grid-cols-3">
           <div class="rounded-2xl border border-console-edge bg-console-deep/60 p-4">
             <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Hosts</p>
@@ -45,17 +56,28 @@
             <p class="mt-2 text-2xl font-semibold">{{ previewData?.warnings.length || 0 }}</p>
           </div>
         </div>
+
         <div v-if="previewData?.warnings.length" class="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
           <p v-for="warning in previewData.warnings" :key="warning">{{ warning }}</p>
         </div>
-        <button class="btn-primary" @click="commit">Import Inventory</button>
+
+        <div class="rounded-2xl border border-console-edge/80 bg-console-deep/50 p-4 text-sm text-console-muted">
+          Review the preview carefully. Unsupported rows or ambiguous grouping should be corrected before import so later job targeting stays predictable.
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="btn-secondary" :disabled="isImporting" @click="step = 1">Back</button>
+          <button class="btn-primary" :disabled="isImporting || !canCommit" @click="commit">
+            {{ isImporting ? 'Importing inventory...' : 'Import Inventory' }}
+          </button>
+        </div>
       </div>
     </div>
   </DrawerPanel>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import api from '../../api/client'
 import { useAppStore } from '../../stores/app'
@@ -71,6 +93,35 @@ const file = ref<File | null>(null)
 const previewData = ref<any>(null)
 const name = ref('')
 const description = ref('')
+const isPreviewing = ref(false)
+const isImporting = ref(false)
+
+const selectedFileLabel = computed(() => file.value?.name ?? '')
+const canCommit = computed(() => Boolean(name.value.trim() && previewData.value))
+
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) {
+      resetState()
+    }
+  },
+)
+
+function resetState() {
+  step.value = 1
+  format.value = 'ini'
+  file.value = null
+  previewData.value = null
+  name.value = ''
+  description.value = ''
+  isPreviewing.value = false
+  isImporting.value = false
+}
+
+function emitClose() {
+  emit('close')
+}
 
 function onFileChange(event: Event) {
   const target = event.target as HTMLInputElement
@@ -79,27 +130,53 @@ function onFileChange(event: Event) {
 
 async function preview() {
   if (!file.value) {
-    app.pushToast('Choose a file before previewing', 'error')
+    app.pushToast('Choose a file before previewing', 'error', 'The import wizard needs a source file to normalize.')
     return
   }
-  const form = new FormData()
-  form.append('file', file.value)
-  const response = await api.post(`/inventories/import/preview?source_format=${format.value}`, form)
-  previewData.value = response.data.data
-  name.value = file.value.name.replace(/\.[^.]+$/, '')
-  step.value = 2
+
+  isPreviewing.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file.value)
+    const response = await api.post(`/inventories/import/preview?source_format=${format.value}`, form)
+    previewData.value = response.data.data
+    name.value = file.value.name.replace(/\.[^.]+$/, '')
+    step.value = 2
+    app.pushToast('Preview generated', 'success', 'Review hosts, groups, and warnings before saving to the inventory database.')
+  } catch (error: any) {
+    const detail = error?.response?.data?.message ?? 'The uploaded file could not be normalized. Check format selection and source content.'
+    app.pushToast('Preview failed', 'error', detail)
+  } finally {
+    isPreviewing.value = false
+  }
 }
 
 async function commit() {
-  const response = await api.post('/inventories/import/commit', {
-    name: name.value,
-    description: description.value,
-    preview: previewData.value,
-  })
-  app.pushToast('Inventory imported', 'success')
-  emit('saved', response.data.data)
-  emit('close')
-  step.value = 1
-  previewData.value = null
+  if (!previewData.value) {
+    app.pushToast('Generate a preview first', 'error', 'The wizard only imports reviewed normalized data.')
+    return
+  }
+  if (!name.value.trim()) {
+    app.pushToast('Inventory name is required', 'error', 'Set a clear inventory name before committing the preview.')
+    return
+  }
+
+  isImporting.value = true
+  try {
+    const response = await api.post('/inventories/import/commit', {
+      name: name.value.trim(),
+      description: description.value.trim(),
+      preview: previewData.value,
+    })
+    app.pushToast('Inventory imported', 'success', 'The normalized inventory is now available for targeting and job execution.')
+    emit('saved', response.data.data)
+    emit('close')
+    resetState()
+  } catch (error: any) {
+    const detail = error?.response?.data?.message ?? 'The preview could not be committed to the database.'
+    app.pushToast('Import failed', 'error', detail)
+  } finally {
+    isImporting.value = false
+  }
 }
 </script>
