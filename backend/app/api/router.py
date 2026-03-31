@@ -34,6 +34,7 @@ def get_system_settings(_: AuthContext = Depends(require_admin)) -> ApiResponse[
             'app_name': settings.app_name,
             'environment': settings.app_env,
             'ldap_enabled': settings.ldap_enabled,
+            'allow_local_auth': settings.allow_local_auth,
             'session_ttl_minutes': settings.session_ttl_minutes,
         }
     )
