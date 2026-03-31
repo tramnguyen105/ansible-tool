@@ -1,90 +1,118 @@
 <template>
   <div>
-    <div v-if="isLoading" class="rounded-3xl border border-console-edge bg-console-panel/80 p-6 shadow-xl shadow-slate-950/20">
-      <div class="h-4 w-40 rounded-full bg-console-edge/80" />
+    <div v-if="isLoading" class="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <div class="h-4 w-40 rounded-full bg-slate-800" />
       <div class="mt-5 grid gap-4 xl:grid-cols-4">
-        <div class="h-24 rounded-2xl bg-console-deep/80" />
-        <div class="h-24 rounded-2xl bg-console-deep/70" />
-        <div class="h-24 rounded-2xl bg-console-deep/60" />
-        <div class="h-24 rounded-2xl bg-console-deep/50" />
+        <div class="h-24 rounded-2xl bg-slate-800/80" />
+        <div class="h-24 rounded-2xl bg-slate-800/70" />
+        <div class="h-24 rounded-2xl bg-slate-800/60" />
+        <div class="h-24 rounded-2xl bg-slate-800/50" />
       </div>
-      <p class="mt-5 text-sm text-console-muted">Loading job metadata, result summary, and captured runner output.</p>
+      <p class="mt-5 text-sm text-slate-400">Loading job metadata and runner output…</p>
     </div>
 
     <div v-else-if="job">
       <PageHeader
         :title="job.name"
-        eyebrow="Job Detail"
-        description="Inspect execution status, timing, target scope, and captured ansible-runner output before deciding whether the job is safe to repeat."
-      />
+        eyebrow="Job detail"
+        description="Review status, timing, scope, and captured output before deciding whether to repeat the run."
+      >
+        <RouterLink class="btn-secondary" to="/jobs">Back to jobs</RouterLink>
+      </PageHeader>
 
-      <div class="grid gap-4 xl:grid-cols-4">
-        <CardStat label="Status" :value="job.status" tone="execution" :helper="job.finished_at ? `Finished ${formatDateTime(job.finished_at)}` : 'Execution is still in progress or waiting to run.'" />
-        <CardStat label="Mode" :value="job.check_mode ? 'Check' : 'Live'" tone="guardrail" :helper="job.check_mode ? 'Validation-only execution.' : 'Live production-impacting run.'" />
-        <CardStat label="Return Code" :value="job.result?.return_code ?? 'n/a'" tone="result" :helper="job.result?.return_code === 0 ? 'Runner reported a successful exit code.' : 'Non-zero codes should be reviewed carefully.'" />
-        <CardStat label="Target" :value="targetLabel" tone="scope" :helper="job.target_value || 'All managed hosts in the selected inventory.'" />
+      <div class="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <section
+          class="rounded-2xl border p-5"
+          :class="statusTone === 'critical'
+            ? 'border-rose-500/30 bg-rose-500/10'
+            : statusTone === 'active'
+              ? 'border-amber-500/30 bg-amber-500/10'
+              : 'border-emerald-500/30 bg-emerald-500/10'"
+        >
+          <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em]" :class="statusTone === 'critical' ? 'text-rose-200' : statusTone === 'active' ? 'text-amber-200' : 'text-emerald-200'">
+            {{ statusEyebrow }}
+          </p>
+          <div class="mt-2 flex items-center gap-3">
+            <h3 class="text-[1.8rem] font-semibold text-white">{{ statusTitle }}</h3>
+            <StatusBadge :value="job.status" />
+          </div>
+          <p class="mt-2 text-[0.98rem] leading-7 text-slate-200/90">{{ statusDescription }}</p>
+        </section>
+
+        <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+          <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Execution window</p>
+          <div class="mt-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Submitted</p>
+              <p class="mt-2 text-[0.98rem] font-medium text-white">{{ formatDateTime(job.created_at) }}</p>
+            </div>
+            <div>
+              <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Started</p>
+              <p class="mt-2 text-[0.98rem] font-medium text-white">{{ formatDateTime(job.started_at) }}</p>
+            </div>
+            <div>
+              <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Finished</p>
+              <p class="mt-2 text-[0.98rem] font-medium text-white">{{ formatDateTime(job.finished_at) }}</p>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <div class="mt-6 grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
-        <section class="space-y-4 rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-950/20">
+      <div class="mt-6 grid gap-4 xl:grid-cols-4">
+        <CardStat label="Status" :value="job.status" tone="tracked" :helper="job.finished_at ? `Finished ${formatDateTime(job.finished_at)}` : 'Execution is still in progress or waiting to run.'" />
+        <CardStat label="Mode" :value="job.check_mode ? 'Check' : 'Live'" tone="managed" :helper="job.check_mode ? 'Validation-only execution.' : 'Live execution against managed targets.'" />
+        <CardStat label="Return code" :value="job.result?.return_code ?? 'n/a'" tone="validated" :helper="job.result?.return_code === 0 ? 'Runner reported a successful exit code.' : 'Review non-zero return codes before repeating the run.'" />
+        <CardStat label="Target" :value="targetLabel" tone="secured" :helper="job.target_value || 'All managed hosts in the selected inventory.'" />
+      </div>
+
+      <div class="mt-6 grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
+        <section class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-5">
           <div>
-            <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Execution metadata</p>
-            <h3 class="mt-2 text-xl font-semibold text-white">Run context</h3>
+            <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Run context</p>
+            <h3 class="mt-2 text-[1.15rem] font-semibold text-white">Execution metadata</h3>
           </div>
 
-          <div class="space-y-3 rounded-2xl border border-console-edge/70 bg-console-deep/60 p-4 text-sm">
+          <div class="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-[0.97rem]">
             <div class="flex items-start justify-between gap-4">
-              <span class="text-console-muted">Created</span>
-              <span class="text-right text-white">{{ formatDateTime(job.created_at) }}</span>
-            </div>
-            <div class="flex items-start justify-between gap-4">
-              <span class="text-console-muted">Started</span>
-              <span class="text-right text-white">{{ formatDateTime(job.started_at) }}</span>
-            </div>
-            <div class="flex items-start justify-between gap-4">
-              <span class="text-console-muted">Finished</span>
-              <span class="text-right text-white">{{ formatDateTime(job.finished_at) }}</span>
-            </div>
-            <div class="flex items-start justify-between gap-4">
-              <span class="text-console-muted">Target type</span>
+              <span class="text-slate-400">Target type</span>
               <span class="text-right text-white">{{ job.target_type }}</span>
             </div>
             <div class="flex items-start justify-between gap-4">
-              <span class="text-console-muted">Target value</span>
+              <span class="text-slate-400">Target value</span>
               <span class="text-right text-white">{{ job.target_value || 'All managed hosts' }}</span>
             </div>
             <div class="flex items-start justify-between gap-4">
-              <span class="text-console-muted">Celery task</span>
+              <span class="text-slate-400">Celery task</span>
               <span class="max-w-[220px] break-all text-right text-white">{{ job.celery_task_id || 'Not queued' }}</span>
             </div>
           </div>
 
-          <div class="rounded-2xl border border-console-edge/70 bg-console-deep/60 p-4 text-sm">
-            <p class="text-xs uppercase tracking-[0.18em] text-console-muted">Result summary</p>
-            <pre class="mt-3 max-h-[220px] overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950/40 p-3 text-xs text-console-ink">{{ summaryText }}</pre>
+          <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-[0.97rem]">
+            <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Result summary</p>
+            <pre class="mt-3 max-h-[220px] overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950 p-3 text-xs text-slate-300">{{ summaryText }}</pre>
           </div>
         </section>
 
         <div class="space-y-6">
-          <section class="rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-950/20">
+          <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
             <div class="flex items-center justify-between gap-3">
-              <h3 class="text-lg font-semibold text-white">Execution Output</h3>
+              <h3 class="text-[1.15rem] font-semibold text-white">Execution output</h3>
               <StatusBadge :value="job.status" />
             </div>
-            <pre class="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-console-deep/80 p-4 text-xs text-console-ink">{{ job.result?.stdout || 'No stdout captured yet.' }}</pre>
+            <pre class="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-slate-200">{{ job.result?.stdout || 'No stdout captured yet.' }}</pre>
           </section>
 
-          <section class="rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-950/20">
-            <h3 class="text-lg font-semibold text-white">Error Output</h3>
-            <pre class="mt-4 max-h-[260px] overflow-auto rounded-2xl bg-slate-950/70 p-4 text-xs text-rose-100">{{ job.result?.stderr || 'No stderr captured.' }}</pre>
+          <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <h3 class="text-[1.15rem] font-semibold text-white">Error output</h3>
+            <pre class="mt-4 max-h-[260px] overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-rose-100">{{ job.result?.stderr || 'No stderr captured.' }}</pre>
           </section>
         </div>
       </div>
     </div>
 
-    <div v-else class="rounded-3xl border border-console-edge bg-console-panel/80 p-6 shadow-xl shadow-slate-950/20">
-      <PageHeader title="Job Detail" eyebrow="Execution Review" description="The requested job could not be loaded." />
-      <p class="mt-4 text-sm text-console-muted">Verify the job still exists and that the current session has permission to review it.</p>
+    <div v-else class="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <PageHeader title="Job detail" eyebrow="Execution review" description="The requested job could not be loaded." />
+      <p class="mt-4 text-[0.97rem] text-slate-400">Verify the job still exists and that the current session has permission to review it.</p>
     </div>
   </div>
 </template>
@@ -116,6 +144,35 @@ const summaryText = computed(() => {
     return 'No structured result summary was captured.'
   }
   return JSON.stringify(summary, null, 2)
+})
+
+const statusTone = computed(() => {
+  if (!job.value) return 'neutral'
+  if (['failed', 'error', 'cancelled'].includes(job.value.status)) return 'critical'
+  if (['running', 'queued', 'pending'].includes(job.value.status)) return 'active'
+  return 'healthy'
+})
+
+const statusEyebrow = computed(() => {
+  if (statusTone.value === 'critical') return 'Needs review'
+  if (statusTone.value === 'active') return 'Execution in progress'
+  return 'Completed state'
+})
+
+const statusTitle = computed(() => {
+  if (!job.value) return 'Job status'
+  return `${job.value.status.charAt(0).toUpperCase()}${job.value.status.slice(1)} execution`
+})
+
+const statusDescription = computed(() => {
+  if (!job.value) return ''
+  if (statusTone.value === 'critical') {
+    return 'This job did not complete cleanly. Review stderr, summary output, and target scope before running it again.'
+  }
+  if (statusTone.value === 'active') {
+    return 'This job is still queued or running. Avoid overlapping changes against the same systems until it finishes.'
+  }
+  return 'This job completed without an active failure state. Review captured output before repeating it if the target scope is sensitive.'
 })
 
 onMounted(async () => {

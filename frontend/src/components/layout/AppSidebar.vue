@@ -1,5 +1,5 @@
 <template>
-  <aside class="border-r border-console-edge/60 bg-slate-950/90 px-4 py-5 backdrop-blur lg:sticky lg:top-0 lg:h-screen">
+  <aside class="pretty-scrollbar border-r border-console-edge/60 bg-slate-950/90 px-4 py-5 backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
     <div class="mb-5 px-2">
       <p class="text-[1rem] font-semibold text-white">Ansible Automation Console</p>
       <p class="mt-1 text-[0.82rem] text-slate-400">Network automation operations</p>
