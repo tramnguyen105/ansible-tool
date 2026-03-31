@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(78,193,210,0.18),_transparent_30%),linear-gradient(180deg,_#0d1622_0%,_#111f31_45%,_#0f1825_100%)] text-console-ink">
-    <div class="mx-auto grid min-h-screen max-w-[1680px] grid-cols-1 lg:grid-cols-[280px_1fr]">
+  <div class="min-h-screen bg-slate-950 text-console-ink">
+    <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]">
       <AppSidebar />
-      <div class="flex min-h-screen flex-col">
+      <div class="flex min-h-screen flex-col min-w-0">
         <AppHeader />
-        <main class="flex-1 px-5 py-6 lg:px-8">
+        <main class="flex-1 px-4 py-5 sm:px-6 lg:px-8 2xl:px-10">
           <slot />
         </main>
       </div>

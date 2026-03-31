@@ -1,16 +1,42 @@
 <template>
-  <div class="rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-950/20">
-    <div class="flex items-start justify-between gap-4">
+  <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <div class="flex items-start justify-between gap-3">
       <div>
-        <p class="text-xs uppercase tracking-[0.26em] text-console-muted">{{ label }}</p>
-        <p class="mt-4 text-3xl font-semibold text-white">{{ value }}</p>
+        <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">{{ label }}</p>
+        <p class="mt-3 text-[2rem] font-semibold text-white">{{ value }}</p>
       </div>
-      <span v-if="tone" class="rounded-full bg-console-deep/80 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-console-glow">{{ tone }}</span>
+      <span class="rounded-full px-2.5 py-1 text-[0.72rem] font-medium uppercase tracking-[0.1em]" :class="toneClass">{{ tone }}</span>
     </div>
-    <p v-if="helper" class="mt-4 text-sm text-console-muted">{{ helper }}</p>
-  </div>
+    <p v-if="helper" class="mt-3 text-[0.96rem] leading-7 text-slate-400">{{ helper }}</p>
+  </section>
 </template>
 
 <script setup lang="ts">
-defineProps<{ label: string; value: string | number; tone?: string; helper?: string }>()
+import { computed } from 'vue'
+
+const props = defineProps<{
+  label: string
+  value: string | number
+  tone?: string
+  helper?: string
+}>()
+
+const toneClass = computed(() => {
+  switch (props.tone) {
+    case 'managed':
+    case 'identity':
+      return 'bg-sky-500/10 text-sky-200'
+    case 'secured':
+    case 'auth':
+      return 'bg-emerald-500/10 text-emerald-200'
+    case 'validated':
+    case 'runtime':
+      return 'bg-violet-500/10 text-violet-200'
+    case 'tracked':
+    case 'minutes':
+      return 'bg-amber-500/10 text-amber-200'
+    default:
+      return 'bg-slate-800 text-slate-300'
+  }
+})
 </script>

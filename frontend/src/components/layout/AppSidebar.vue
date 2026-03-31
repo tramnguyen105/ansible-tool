@@ -1,41 +1,70 @@
 <template>
-  <aside class="border-r border-console-edge/70 bg-console-deep/70 px-4 py-6 backdrop-blur lg:sticky lg:top-0 lg:h-screen">
-    <div class="mb-6 rounded-2xl border border-console-edge bg-console-panel/80 p-5 shadow-2xl shadow-sky-950/20">
-      <p class="text-xs uppercase tracking-[0.28em] text-console-glow">Operations Console</p>
-      <h1 class="mt-3 text-xl font-semibold text-white">Ansible Automation Console</h1>
-      <p class="mt-2 text-sm leading-6 text-console-muted">Internal network automation workspace for managed inventories, playbooks, jobs, and audit workflows.</p>
+  <aside class="border-r border-console-edge/60 bg-slate-950/90 px-4 py-5 backdrop-blur lg:sticky lg:top-0 lg:h-screen">
+    <div class="mb-5 px-2">
+      <p class="text-[1rem] font-semibold text-white">Ansible Automation Console</p>
+      <p class="mt-1 text-[0.82rem] text-slate-400">Network automation operations</p>
     </div>
 
-    <div class="mb-4 rounded-2xl border border-console-edge/80 bg-console-panel/40 px-4 py-3 text-sm text-console-muted">
-      <p class="text-xs uppercase tracking-[0.2em] text-console-glow">Workspace mode</p>
-      <p class="mt-2">Operator-focused MVP running with admin access only.</p>
+    <div class="space-y-6">
+      <section v-for="group in groups" :key="group.label">
+        <p class="px-2 text-[0.78rem] font-medium uppercase tracking-[0.12em] text-slate-500">{{ group.label }}</p>
+        <nav class="mt-2 space-y-1">
+          <RouterLink
+            v-for="item in group.items"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center rounded-xl px-3 py-2.5 text-[0.97rem] transition"
+            :class="isActive(item.to)
+              ? 'bg-slate-800 text-white'
+              : 'text-slate-300 hover:bg-slate-900 hover:text-white'"
+          >
+            {{ item.label }}
+          </RouterLink>
+        </nav>
+      </section>
     </div>
-
-    <nav class="space-y-2">
-      <RouterLink
-        v-for="item in items"
-        :key="item.to"
-        :to="item.to"
-        class="block rounded-2xl px-4 py-3 text-sm transition"
-        :class="$route.path === item.to || $route.path.startsWith(item.to + '/') ? 'bg-console-surface text-white shadow-lg shadow-cyan-950/20' : 'text-console-muted hover:bg-console-panel/80 hover:text-white'"
-      >
-        {{ item.label }}
-      </RouterLink>
-    </nav>
   </aside>
 </template>
 
 <script setup lang="ts">
-const items = [
-  { label: 'Dashboard', to: '/' },
-  { label: 'Inventory', to: '/inventory' },
-  { label: 'Credentials', to: '/credentials' },
-  { label: 'Templates', to: '/templates' },
-  { label: 'Playbooks', to: '/playbooks' },
-  { label: 'CLI Converter', to: '/converter' },
-  { label: 'Jobs', to: '/jobs' },
-  { label: 'Schedules', to: '/schedules' },
-  { label: 'Audit Logs', to: '/audit' },
-  { label: 'Settings', to: '/settings' },
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+const groups = [
+  {
+    label: 'Overview',
+    items: [
+      { label: 'Dashboard', to: '/' },
+      { label: 'Jobs', to: '/jobs' },
+      { label: 'Schedules', to: '/schedules' },
+    ],
+  },
+  {
+    label: 'Configuration',
+    items: [
+      { label: 'Inventory', to: '/inventory' },
+      { label: 'Credentials', to: '/credentials' },
+      { label: 'Templates', to: '/templates' },
+      { label: 'Playbooks', to: '/playbooks' },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { label: 'CLI Converter', to: '/converter' },
+    ],
+  },
+  {
+    label: 'Administration',
+    items: [
+      { label: 'Audit Logs', to: '/audit' },
+      { label: 'Settings', to: '/settings' },
+    ],
+  },
 ]
+
+function isActive(path: string) {
+  return route.path === path || route.path.startsWith(path + '/')
+}
 </script>

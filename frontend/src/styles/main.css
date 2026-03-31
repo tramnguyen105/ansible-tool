@@ -4,12 +4,15 @@
 
 :root {
   color-scheme: dark;
+  font-size: 16.5px;
 }
 
 body {
   margin: 0;
   font-family: 'Segoe UI', 'IBM Plex Sans', sans-serif;
-  background: #0d1622;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  background: #0f172a;
 }
 
 button,
@@ -24,10 +27,10 @@ textarea,
 select {
   width: 100%;
   border-radius: 16px;
-  border: 1px solid rgba(41, 64, 93, 0.95);
-  background: rgba(15, 23, 35, 0.85);
+  border: 1px solid rgba(51, 65, 85, 0.95);
+  background: rgba(15, 23, 35, 0.92);
   color: #e7eff7;
-  padding: 0.8rem 0.95rem;
+  padding: 0.9rem 1rem;
 }
 
 textarea {
@@ -41,21 +44,21 @@ button {
 .btn-primary {
   border-radius: 9999px;
   background: linear-gradient(135deg, #2b8ea1 0%, #3569a9 100%);
-  padding: 0.75rem 1.1rem;
+  padding: 0.8rem 1.2rem;
   color: white;
 }
 
 .btn-secondary {
   border-radius: 9999px;
-  border: 1px solid rgba(41, 64, 93, 0.95);
-  padding: 0.75rem 1.1rem;
+  border: 1px solid rgba(51, 65, 85, 0.95);
+  padding: 0.8rem 1.2rem;
 }
 
 .field-label {
   display: block;
-  margin-bottom: 0.45rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
+  margin-bottom: 0.5rem;
+  font-size: 0.84rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #99adc2;
+  color: #a6b8cb;
 }
