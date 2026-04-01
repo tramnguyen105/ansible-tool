@@ -122,7 +122,7 @@ async function loadLookups() {
   try {
     const [inventoryResp, credentialResp, playbookResp] = await Promise.all([
       api.get('/inventories'),
-      api.get('/credentials'),
+      api.get('/credentials?active_only=true'),
       api.get('/playbooks'),
     ])
     inventories.value = inventoryResp.data.data

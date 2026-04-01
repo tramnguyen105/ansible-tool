@@ -6,7 +6,16 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.api.deps import AuthContext, get_db, require_admin, require_csrf
-from app.modules.inventory.schemas import ImportFormat, InventoryCreate, InventoryImportCommit, InventoryImportPreview, InventoryRead, InventoryUpdate
+from app.modules.inventory.schemas import (
+    ImportFormat,
+    InventoryCreate,
+    InventoryImportCommit,
+    InventoryImportPreviewRead,
+    InventoryRead,
+    InventorySummaryRead,
+    InventoryUpdate,
+    InventoryUsageRead,
+)
 from app.modules.inventory.service import InventoryService
 from app.schemas.common import ApiResponse
 
@@ -20,10 +29,22 @@ def list_inventories(_: AuthContext = Depends(require_admin), db: Session = Depe
     return ApiResponse(data=service.list())
 
 
+@router.get('/summary', response_model=ApiResponse[list[InventorySummaryRead]])
+def list_inventory_summary(_: AuthContext = Depends(require_admin), db: Session = Depends(get_db)) -> ApiResponse[list[InventorySummaryRead]]:
+    service = InventoryService(db)
+    return ApiResponse(data=service.list_summary())
+
+
 @router.get('/{inventory_id}', response_model=ApiResponse[InventoryRead])
 def get_inventory(inventory_id: UUID, _: AuthContext = Depends(require_admin), db: Session = Depends(get_db)) -> ApiResponse[InventoryRead]:
     service = InventoryService(db)
     return ApiResponse(data=service.get(inventory_id))
+
+
+@router.get('/{inventory_id}/usage', response_model=ApiResponse[InventoryUsageRead])
+def inventory_usage(inventory_id: UUID, _: AuthContext = Depends(require_admin), db: Session = Depends(get_db)) -> ApiResponse[InventoryUsageRead]:
+    service = InventoryService(db)
+    return ApiResponse(data=service.usage(inventory_id))
 
 
 @router.post('', response_model=ApiResponse[InventoryRead], dependencies=[Depends(require_csrf)])
@@ -45,13 +66,13 @@ def delete_inventory(inventory_id: UUID, auth: AuthContext = Depends(require_adm
     return ApiResponse(message='Inventory deleted', data={})
 
 
-@router.post('/import/preview', response_model=ApiResponse[InventoryImportPreview], dependencies=[Depends(require_csrf)])
+@router.post('/import/preview', response_model=ApiResponse[InventoryImportPreviewRead], dependencies=[Depends(require_csrf)])
 async def preview_inventory_import(
     source_format: ImportFormat = Query(...),
     file: UploadFile = File(...),
     _: AuthContext = Depends(require_admin),
     db: Session = Depends(get_db),
-) -> ApiResponse[InventoryImportPreview]:
+) -> ApiResponse[InventoryImportPreviewRead]:
     service = InventoryService(db)
     return ApiResponse(
         message='Inventory preview generated',

@@ -12,8 +12,11 @@ class CredentialRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def list(self) -> list[Credential]:
-        return list(self.session.scalars(select(Credential).order_by(Credential.name)).all())
+    def list(self, *, active_only: bool = False) -> list[Credential]:
+        query = select(Credential).order_by(Credential.name)
+        if active_only:
+            query = query.where(Credential.is_active.is_(True))
+        return list(self.session.scalars(query).all())
 
     def get(self, credential_id: UUID) -> Credential | None:
         return self.session.get(Credential, credential_id)

@@ -43,3 +43,10 @@ class CredentialRead(ModelBase):
     has_password: bool
     has_private_key: bool
     has_passphrase: bool
+
+
+class CredentialUsageRead(BaseModel):
+    schedules_total: int
+    schedules_enabled: int
+    jobs_total: int
+    jobs_active: int

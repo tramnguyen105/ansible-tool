@@ -142,8 +142,12 @@ class ScheduleService:
     ) -> None:
         if inventory_id and self.session.get(Inventory, inventory_id) is None:
             raise AppError(404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
-        if credential_id and self.session.get(Credential, credential_id) is None:
-            raise AppError(404, 'CREDENTIAL_NOT_FOUND', 'Credential not found')
+        if credential_id:
+            credential = self.session.get(Credential, credential_id)
+            if credential is None:
+                raise AppError(404, 'CREDENTIAL_NOT_FOUND', 'Credential not found')
+            if not credential.is_active:
+                raise AppError(409, 'CREDENTIAL_INACTIVE', 'Credential is inactive')
         if playbook_id and self.session.get(Playbook, playbook_id) is None:
             raise AppError(404, 'PLAYBOOK_NOT_FOUND', 'Playbook not found')
         if pre_check_playbook_id and self.session.get(Playbook, pre_check_playbook_id) is None:
@@ -159,19 +163,33 @@ def dispatch_due_schedules() -> dict:
         service = ScheduleService(session)
         due_schedules = service.list_due()
         dispatched = 0
+        skipped = 0
         for schedule in due_schedules:
-            JobService(session).create_from_schedule(schedule, user_id=schedule.created_by_id)
-            schedule.last_run_at = datetime.now(timezone.utc)
-            schedule.next_run_at = service.compute_next_run(schedule.cron_expression, schedule.timezone, schedule.last_run_at)
-            service.audit.record(
-                action='schedule.dispatch',
-                resource_type='schedule',
-                resource_id=str(schedule.id),
-                message=f'Schedule {schedule.name} dispatched a job',
-                user_id=schedule.created_by_id,
-            )
-            dispatched += 1
+            try:
+                JobService(session).create_from_schedule(schedule, user_id=schedule.created_by_id)
+                schedule.last_run_at = datetime.now(timezone.utc)
+                schedule.next_run_at = service.compute_next_run(schedule.cron_expression, schedule.timezone, schedule.last_run_at)
+                service.audit.record(
+                    action='schedule.dispatch',
+                    resource_type='schedule',
+                    resource_id=str(schedule.id),
+                    message=f'Schedule {schedule.name} dispatched a job',
+                    user_id=schedule.created_by_id,
+                )
+                dispatched += 1
+            except AppError as exc:
+                schedule.enabled = False
+                schedule.updated_by_id = schedule.created_by_id
+                service.audit.record(
+                    action='schedule.auto_disable',
+                    resource_type='schedule',
+                    resource_id=str(schedule.id),
+                    message=f'Schedule {schedule.name} was disabled after failed dispatch dependency validation',
+                    user_id=schedule.created_by_id,
+                    details={'error': exc.code, 'message': exc.message},
+                )
+                skipped += 1
         session.commit()
-        return {'dispatched': dispatched}
+        return {'dispatched': dispatched, 'skipped': skipped}
     finally:
         session.close()

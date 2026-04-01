@@ -130,8 +130,11 @@ class JobService:
     ) -> None:
         if self.session.get(Inventory, inventory_id) is None:
             raise AppError(404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
-        if self.session.get(Credential, credential_id) is None:
+        credential = self.session.get(Credential, credential_id)
+        if credential is None:
             raise AppError(404, 'CREDENTIAL_NOT_FOUND', 'Credential not found')
+        if not credential.is_active:
+            raise AppError(409, 'CREDENTIAL_INACTIVE', 'Credential is inactive')
         if self.session.get(Playbook, playbook_id) is None:
             raise AppError(404, 'PLAYBOOK_NOT_FOUND', 'Playbook not found')
         if pre_check_playbook_id and self.session.get(Playbook, pre_check_playbook_id) is None:

@@ -70,11 +70,40 @@
         <template #actions="{ row }">
           <div class="flex justify-end gap-3 text-sm">
             <button class="text-console-glow transition hover:text-white" :disabled="isSaving" @click="openEdit(row)">Edit</button>
-            <button class="text-rose-300 transition hover:text-rose-200 disabled:opacity-50" :disabled="isSaving" @click="removeCredential(row)">Delete</button>
+            <button class="text-rose-300 transition hover:text-rose-200 disabled:opacity-50" :disabled="isSaving" @click="promptDelete(row)">Delete</button>
           </div>
         </template>
       </DataTable>
     </div>
+
+    <DrawerPanel :open="showDeleteConfirm" title="Delete credential" @close="closeDeleteConfirm">
+      <div class="space-y-4">
+        <p class="text-sm text-console-muted">
+          Deleting <span class="font-medium text-white">{{ deleteCandidate?.name }}</span> is permanent.
+          This credential is referenced by {{ deleteUsage.schedules_total }} schedules ({{ deleteUsage.schedules_enabled }} enabled) and {{ deleteUsage.jobs_total }} jobs ({{ deleteUsage.jobs_active }} active).
+        </p>
+        <BannerNotice
+          v-if="deleteUsage.schedules_enabled > 0 || deleteUsage.jobs_active > 0"
+          title="Credential in use"
+          tone="warn"
+          text="This credential cannot be deleted while it is used by enabled schedules or active jobs."
+        />
+        <div>
+          <label class="field-label">Type credential name to confirm</label>
+          <input v-model="deleteConfirmText" :disabled="isSaving" placeholder="Credential name" />
+        </div>
+        <div class="flex justify-end gap-2">
+          <button class="btn-secondary" :disabled="isSaving" @click="closeDeleteConfirm">Cancel</button>
+          <button
+            class="btn-primary"
+            :disabled="isSaving || deleteConfirmText !== (deleteCandidate?.name || '') || deleteUsage.schedules_enabled > 0 || deleteUsage.jobs_active > 0"
+            @click="removeCredential"
+          >
+            {{ isSaving ? 'Deleting...' : 'Delete credential' }}
+          </button>
+        </div>
+      </div>
+    </DrawerPanel>
 
     <DrawerPanel :open="showDrawer" :title="selectedId ? 'Edit credential' : 'Create credential'" @close="closeDrawer">
       <div class="space-y-4">
@@ -121,6 +150,8 @@
           </div>
         </div>
 
+        <BannerNotice v-if="formError" title="Fix credential form errors" tone="warn" :text="formError" />
+
         <BannerNotice
           title="Secret handling"
           tone="info"
@@ -151,11 +182,17 @@ import { useAppStore } from '../../stores/app'
 const app = useAppStore()
 const rows = ref<any[]>([])
 const showDrawer = ref(false)
+const showDeleteConfirm = ref(false)
 const selectedId = ref<string | null>(null)
+const selectedRow = ref<any | null>(null)
 const search = ref('')
 const typeFilter = ref('all')
 const isLoading = ref(true)
 const isSaving = ref(false)
+const formError = ref('')
+const deleteConfirmText = ref('')
+const deleteCandidate = ref<any | null>(null)
+const deleteUsage = reactive({ schedules_total: 0, schedules_enabled: 0, jobs_total: 0, jobs_active: 0 })
 const columns = [
   { key: 'name', label: 'Credential' },
   { key: 'credential_type', label: 'Type' },
@@ -196,7 +233,7 @@ function normalizeRow(item: any) {
       item.has_passphrase ? 'Passphrase stored' : null,
     ]
       .filter(Boolean)
-      .join(' • '),
+      .join(' Â· '),
   }
 }
 
@@ -213,12 +250,16 @@ function resetForm() {
 }
 
 function openCreate() {
+  formError.value = ''
   resetForm()
+  selectedRow.value = null
   showDrawer.value = true
 }
 
 function openEdit(row: any) {
+  formError.value = ''
   selectedId.value = row.id
+  selectedRow.value = row
   form.name = row.name
   form.description = row.description || ''
   form.credential_type = row.credential_type
@@ -232,8 +273,21 @@ function openEdit(row: any) {
 
 function closeDrawer() {
   if (isSaving.value) return
+  formError.value = ''
   showDrawer.value = false
   resetForm()
+  selectedRow.value = null
+}
+
+function closeDeleteConfirm() {
+  if (isSaving.value) return
+  showDeleteConfirm.value = false
+  deleteCandidate.value = null
+  deleteConfirmText.value = ''
+  deleteUsage.schedules_total = 0
+  deleteUsage.schedules_enabled = 0
+  deleteUsage.jobs_total = 0
+  deleteUsage.jobs_active = 0
 }
 
 async function load() {
@@ -249,6 +303,11 @@ async function load() {
 }
 
 async function save() {
+  formError.value = validateForm()
+  if (formError.value) {
+    app.pushToast(formError.value, 'error')
+    return
+  }
   isSaving.value = true
   try {
     const payload: any = {
@@ -282,11 +341,41 @@ async function save() {
   }
 }
 
-async function removeCredential(row: any) {
-  if (!window.confirm(`Delete credential "${row.name}"?`)) return
+function validateForm() {
+  const name = form.name.trim()
+  const username = form.username.trim()
+  if (!name) return 'Credential name is required.'
+  if (!username) return 'Username is required.'
+  if (!selectedId.value && form.credential_type === 'ssh_password' && !form.password) return 'Password is required for SSH username/password credentials.'
+  if (!selectedId.value && form.credential_type === 'ssh_private_key' && !form.private_key.trim()) return 'Private key is required for SSH private key credentials.'
+  if (selectedId.value && form.credential_type === 'ssh_password' && !selectedRow.value?.has_password && !form.password) {
+    return 'Password is required because this credential does not currently store one.'
+  }
+  if (selectedId.value && form.credential_type === 'ssh_private_key' && !selectedRow.value?.has_private_key && !form.private_key.trim()) {
+    return 'Private key is required because this credential does not currently store one.'
+  }
+  return ''
+}
+
+async function promptDelete(row: any) {
+  deleteCandidate.value = row
+  deleteConfirmText.value = ''
   try {
-    await api.delete(`/credentials/${row.id}`)
+    const response = await api.get(`/credentials/${row.id}/usage`)
+    Object.assign(deleteUsage, response.data.data)
+    showDeleteConfirm.value = true
+  } catch (error: any) {
+    app.pushToast(error?.response?.data?.message || 'Credential usage could not be loaded', 'error')
+  }
+}
+
+async function removeCredential() {
+  if (!deleteCandidate.value) return
+  if (deleteConfirmText.value !== deleteCandidate.value.name) return
+  try {
+    await api.delete(`/credentials/${deleteCandidate.value.id}`)
     app.pushToast('Credential deleted', 'success')
+    closeDeleteConfirm()
     await load()
   } catch (error: any) {
     app.pushToast(error?.response?.data?.message || 'Credential could not be deleted', 'error')

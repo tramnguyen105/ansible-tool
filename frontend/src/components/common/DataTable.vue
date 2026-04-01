@@ -8,7 +8,12 @@
       <slot name="actions" />
     </div>
 
-    <div v-if="!rows.length" class="rounded-xl border border-dashed border-slate-800 bg-slate-950/70 px-4 py-8 text-center">
+    <div v-if="loading" class="rounded-xl border border-dashed border-slate-800 bg-slate-950/70 px-4 py-8 text-center">
+      <p class="text-[0.98rem] font-medium text-white">{{ loadingTitle }}</p>
+      <p class="mt-2 text-[0.96rem] text-slate-400">{{ loadingDescription }}</p>
+    </div>
+
+    <div v-else-if="!rows.length" class="rounded-xl border border-dashed border-slate-800 bg-slate-950/70 px-4 py-8 text-center">
       <p class="text-[0.98rem] font-medium text-white">{{ emptyTitle }}</p>
       <p class="mt-2 text-[0.96rem] text-slate-400">{{ emptyDescription }}</p>
     </div>
@@ -41,13 +46,21 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   title: string
   description?: string
   columns: Array<{ key: string; label: string }>
   rows: any[]
+  loading?: boolean
+  loadingTitle?: string
+  loadingDescription?: string
   emptyTitle: string
   emptyDescription: string
   compact?: boolean
-}>()
+}>(), {
+  loading: false,
+  loadingTitle: 'Loading',
+  loadingDescription: 'Fetching table data.',
+  compact: false,
+})
 </script>

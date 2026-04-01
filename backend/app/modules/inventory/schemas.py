@@ -77,15 +77,44 @@ class InventoryRead(ModelBase):
     groups: list[InventoryGroupRead] = []
 
 
+class InventorySummaryRead(ModelBase):
+    id: UUID
+    name: str
+    description: str | None = None
+    source_type: str
+    host_count: int = 0
+    enabled_host_count: int = 0
+    group_count: int = 0
+    variable_scope_count: int = 0
+    readiness: str
+    readiness_note: str
+
+
+class InventoryUsageRead(BaseModel):
+    schedules_total: int = 0
+    schedules_enabled: int = 0
+    jobs_total: int = 0
+    jobs_active: int = 0
+
+
 class InventoryImportPreview(BaseModel):
     source_format: ImportFormat
     variables: dict[str, Any] = Field(default_factory=dict)
     hosts: list[InventoryHostInput] = Field(default_factory=list)
     groups: list[InventoryGroupInput] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class InventoryImportPreviewRead(BaseModel):
+    preview_id: str
+    checksum: str
+    expires_at: str
+    preview: InventoryImportPreview
 
 
 class InventoryImportCommit(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
-    preview: InventoryImportPreview
+    preview_id: str = Field(min_length=1, max_length=255)
+    checksum: str = Field(min_length=1, max_length=255)

@@ -1,17 +1,24 @@
 from __future__ import annotations
 
 import io
+import json
 import shlex
+import threading
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
+from hashlib import sha256
 from typing import Any
+from uuid import uuid4
 from uuid import UUID
 
 import pandas as pd
 import yaml
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError
 from app.models.inventory import Inventory, InventoryGroup, InventoryGroupChild, InventoryGroupHost, InventoryHost, InventorySourceType
+from app.models.jobs import Job, JobSchedule, JobStatus
 from app.modules.audit.service import AuditService
 from app.modules.inventory.repository import InventoryRepository
 from app.modules.inventory.schemas import (
@@ -23,8 +30,11 @@ from app.modules.inventory.schemas import (
     InventoryHostRead,
     InventoryImportCommit,
     InventoryImportPreview,
+    InventoryImportPreviewRead,
     InventoryRead,
+    InventorySummaryRead,
     InventoryUpdate,
+    InventoryUsageRead,
 )
 
 
@@ -46,6 +56,11 @@ class NormalizedGroup:
     children: set[str] = field(default_factory=set)
 
 
+_PREVIEW_TTL_MINUTES = 10
+_PREVIEW_CACHE: dict[str, dict[str, Any]] = {}
+_PREVIEW_CACHE_LOCK = threading.Lock()
+
+
 class InventoryService:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -55,15 +70,39 @@ class InventoryService:
     def list(self) -> list[InventoryRead]:
         return [self._serialize(item) for item in self.repository.list()]
 
+    def list_summary(self) -> list[InventorySummaryRead]:
+        return [self._build_summary(item) for item in self.repository.list_summary()]
+
     def get(self, inventory_id: UUID) -> InventoryRead:
         inventory = self.repository.get(inventory_id)
         if inventory is None:
             raise AppError(404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
         return self._serialize(inventory)
 
+    def usage(self, inventory_id: UUID) -> InventoryUsageRead:
+        inventory = self.repository.get(inventory_id)
+        if inventory is None:
+            raise AppError(404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
+
+        schedules_total = self.session.scalar(select(func.count(JobSchedule.id)).where(JobSchedule.inventory_id == inventory_id)) or 0
+        schedules_enabled = self.session.scalar(
+            select(func.count(JobSchedule.id)).where(JobSchedule.inventory_id == inventory_id, JobSchedule.enabled.is_(True))
+        ) or 0
+        jobs_total = self.session.scalar(select(func.count(Job.id)).where(Job.inventory_id == inventory_id)) or 0
+        jobs_active = self.session.scalar(
+            select(func.count(Job.id)).where(Job.inventory_id == inventory_id, Job.status.in_([JobStatus.PENDING, JobStatus.QUEUED, JobStatus.RUNNING]))
+        ) or 0
+        return InventoryUsageRead(
+            schedules_total=int(schedules_total),
+            schedules_enabled=int(schedules_enabled),
+            jobs_total=int(jobs_total),
+            jobs_active=int(jobs_active),
+        )
+
     def create(self, payload: InventoryCreate, *, user_id: UUID | None = None) -> InventoryRead:
         if self.repository.get_by_name(payload.name):
             raise AppError(409, 'INVENTORY_EXISTS', 'Inventory name already exists')
+        self._validate_member_payload(payload.hosts, payload.groups)
 
         inventory = Inventory(
             name=payload.name,
@@ -99,6 +138,7 @@ class InventoryService:
         if payload.variables is not None:
             inventory.variables_json = payload.variables
         if payload.hosts is not None or payload.groups is not None:
+            self._validate_member_payload(payload.hosts or [], payload.groups or [])
             self.repository.clear_related(inventory)
             self.session.flush()
             self._persist_members(inventory, payload.hosts or [], payload.groups or [])
@@ -117,6 +157,21 @@ class InventoryService:
         inventory = self.repository.get(inventory_id)
         if inventory is None:
             raise AppError(404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
+        usage = self.usage(inventory_id)
+        if usage.schedules_enabled > 0:
+            raise AppError(
+                409,
+                'INVENTORY_IN_USE',
+                'Inventory is still referenced by enabled schedules',
+                details=usage.model_dump(),
+            )
+        if usage.jobs_active > 0:
+            raise AppError(
+                409,
+                'INVENTORY_IN_USE',
+                'Inventory is referenced by active jobs',
+                details=usage.model_dump(),
+            )
         self.repository.delete(inventory)
         self.audit.record(
             action='inventory.delete',
@@ -127,26 +182,31 @@ class InventoryService:
         )
         self.session.commit()
 
-    def preview_import(self, *, source_format: ImportFormat, filename: str, raw_bytes: bytes) -> InventoryImportPreview:
-        if source_format == ImportFormat.INI:
-            preview = self._parse_ini(raw_bytes.decode('utf-8'))
-        elif source_format == ImportFormat.YAML:
-            preview = self._parse_yaml_inventory(raw_bytes.decode('utf-8'))
-        elif source_format == ImportFormat.CSV:
-            preview = self._parse_csv(raw_bytes.decode('utf-8'))
-        elif source_format == ImportFormat.EXCEL:
-            preview = self._parse_excel(raw_bytes)
-        else:
-            raise AppError(400, 'IMPORT_FORMAT_INVALID', f'Unsupported format {source_format}')
+    def preview_import(self, *, source_format: ImportFormat, filename: str, raw_bytes: bytes) -> InventoryImportPreviewRead:
+        self._validate_upload(filename=filename, raw_bytes=raw_bytes, source_format=source_format)
+        try:
+            if source_format == ImportFormat.INI:
+                preview = self._parse_ini(raw_bytes.decode('utf-8'))
+            elif source_format == ImportFormat.YAML:
+                preview = self._parse_yaml_inventory(raw_bytes.decode('utf-8'))
+            elif source_format == ImportFormat.CSV:
+                preview = self._parse_csv(raw_bytes.decode('utf-8'))
+            elif source_format == ImportFormat.EXCEL:
+                preview = self._parse_excel(raw_bytes)
+            else:
+                raise AppError(400, 'IMPORT_FORMAT_INVALID', f'Unsupported format {source_format}')
+        except UnicodeDecodeError as exc:
+            raise AppError(400, 'INVENTORY_IMPORT_INVALID', 'Text-based imports must be UTF-8 encoded', {'error': str(exc)}) from exc
 
         preview.source_format = source_format
         preview.warnings.append(f'Preview generated from {filename}')
-        return preview
+        return self._store_preview(preview)
 
     def create_from_preview(self, payload: InventoryImportCommit, *, user_id: UUID | None = None) -> InventoryRead:
-        preview = payload.preview
+        preview = self._resolve_preview(payload.preview_id, payload.checksum)
         if self.repository.get_by_name(payload.name):
             raise AppError(409, 'INVENTORY_EXISTS', 'Inventory name already exists')
+        self._validate_member_payload(preview.hosts, preview.groups)
 
         inventory = Inventory(
             name=payload.name,
@@ -166,6 +226,7 @@ class InventoryService:
             details={'warnings': preview.warnings},
         )
         self.session.commit()
+        self._drop_preview(payload.preview_id)
         return self.get(inventory.id)
 
     def _persist_members(self, inventory: Inventory, hosts: list[InventoryHostInput], groups: list[InventoryGroupInput]) -> None:
@@ -209,6 +270,140 @@ class InventoryService:
                     self.session.flush()
                     group_map[child_name] = child
                 self.session.add(InventoryGroupChild(parent_group_id=parent.id, child_group_id=group_map[child_name].id))
+
+    def _validate_member_payload(self, hosts: list[InventoryHostInput], groups: list[InventoryGroupInput]) -> None:
+        seen_hosts: set[str] = set()
+        for host in hosts:
+            key = host.name.strip().lower()
+            if key in seen_hosts:
+                raise AppError(400, 'INVENTORY_HOST_DUPLICATE', f'Duplicate host name: {host.name}')
+            seen_hosts.add(key)
+
+        seen_groups: set[str] = set()
+        adjacency: dict[str, set[str]] = {}
+        for group in groups:
+            parent = group.name.strip()
+            group_key = parent.lower()
+            if group_key in seen_groups:
+                raise AppError(400, 'INVENTORY_GROUP_DUPLICATE', f'Duplicate group name: {group.name}')
+            seen_groups.add(group_key)
+            adjacency.setdefault(parent, set())
+            for child in group.children:
+                child_name = child.strip()
+                if not child_name:
+                    continue
+                if child_name == parent:
+                    raise AppError(400, 'INVENTORY_GROUP_INVALID', f'Group "{parent}" cannot include itself as a child')
+                adjacency[parent].add(child_name)
+                adjacency.setdefault(child_name, set())
+
+        state: dict[str, int] = {}
+
+        def dfs(node: str, stack: list[str]) -> None:
+            state[node] = 1
+            stack.append(node)
+            for child in adjacency.get(node, set()):
+                child_state = state.get(child, 0)
+                if child_state == 1:
+                    cycle = ' -> '.join(stack + [child])
+                    raise AppError(400, 'INVENTORY_GROUP_CYCLE', f'Group hierarchy contains a cycle: {cycle}')
+                if child_state == 0:
+                    dfs(child, stack)
+            stack.pop()
+            state[node] = 2
+
+        for node in adjacency:
+            if state.get(node, 0) == 0:
+                dfs(node, [])
+
+    def _build_summary(self, inventory: dict[str, Any]) -> InventorySummaryRead:
+        host_count = int(inventory['host_count'])
+        enabled_host_count = int(inventory['enabled_host_count'])
+        group_count = int(inventory['group_count'])
+        variable_scope_count = int(inventory['group_variable_scope_count']) + (1 if inventory['has_inventory_vars'] else 0)
+
+        readiness = 'review'
+        readiness_note = 'Inventory exists but needs more context.'
+        if host_count and enabled_host_count:
+            readiness = 'ready'
+            readiness_note = 'Usable for operator targeting.'
+        if not host_count:
+            readiness = 'incomplete'
+            readiness_note = 'No hosts are assigned yet.'
+        if host_count and not enabled_host_count:
+            readiness = 'disabled'
+            readiness_note = 'All hosts are currently disabled.'
+
+        return InventorySummaryRead(
+            id=inventory['id'],
+            name=inventory['name'],
+            description=inventory['description'],
+            source_type=inventory['source_type'],
+            host_count=host_count,
+            enabled_host_count=enabled_host_count,
+            group_count=group_count,
+            variable_scope_count=variable_scope_count,
+            readiness=readiness,
+            readiness_note=readiness_note,
+        )
+
+    def _store_preview(self, preview: InventoryImportPreview) -> InventoryImportPreviewRead:
+        preview_json = json.dumps(preview.model_dump(mode='json'), sort_keys=True, default=str)
+        preview_id = str(uuid4())
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=_PREVIEW_TTL_MINUTES)
+        checksum = sha256(preview_json.encode('utf-8')).hexdigest()
+        with _PREVIEW_CACHE_LOCK:
+            self._purge_previews()
+            _PREVIEW_CACHE[preview_id] = {
+                'preview': preview,
+                'checksum': checksum,
+                'expires_at': expires_at,
+            }
+        return InventoryImportPreviewRead(
+            preview_id=preview_id,
+            checksum=checksum,
+            expires_at=expires_at.isoformat(),
+            preview=preview,
+        )
+
+    def _resolve_preview(self, preview_id: str, checksum: str) -> InventoryImportPreview:
+        with _PREVIEW_CACHE_LOCK:
+            self._purge_previews()
+            cached = _PREVIEW_CACHE.get(preview_id)
+            if cached is None:
+                raise AppError(400, 'INVENTORY_PREVIEW_EXPIRED', 'Preview token is invalid or expired. Generate a new preview.')
+            if cached['checksum'] != checksum:
+                raise AppError(400, 'INVENTORY_PREVIEW_TAMPERED', 'Preview payload checksum mismatch. Generate a new preview.')
+            return cached['preview']
+
+    def _drop_preview(self, preview_id: str) -> None:
+        with _PREVIEW_CACHE_LOCK:
+            _PREVIEW_CACHE.pop(preview_id, None)
+
+    def _purge_previews(self) -> None:
+        now = datetime.now(timezone.utc)
+        for key in [item for item, cached in _PREVIEW_CACHE.items() if cached['expires_at'] < now]:
+            _PREVIEW_CACHE.pop(key, None)
+
+    def _validate_upload(self, *, filename: str, raw_bytes: bytes, source_format: ImportFormat) -> None:
+        if not raw_bytes:
+            raise AppError(400, 'INVENTORY_IMPORT_INVALID', 'Uploaded file is empty')
+        if len(raw_bytes) > 5 * 1024 * 1024:
+            raise AppError(413, 'INVENTORY_IMPORT_TOO_LARGE', 'Uploaded file exceeds the 5 MB limit')
+
+        lowered = filename.lower()
+        allowed_extensions = {
+            ImportFormat.INI: ('.ini',),
+            ImportFormat.YAML: ('.yml', '.yaml'),
+            ImportFormat.CSV: ('.csv',),
+            ImportFormat.EXCEL: ('.xls', '.xlsx'),
+        }
+        if filename and not lowered.endswith(allowed_extensions[source_format]):
+            raise AppError(
+                400,
+                'INVENTORY_IMPORT_TYPE_MISMATCH',
+                f'File extension does not match selected format "{source_format}"',
+            )
 
     def _serialize(self, inventory: Inventory) -> InventoryRead:
         host_rows = [
@@ -351,11 +546,17 @@ class InventoryService:
         return self._build_preview(hosts, groups, inventory_vars, warnings, ImportFormat.YAML)
 
     def _parse_csv(self, text: str) -> InventoryImportPreview:
-        frame = pd.read_csv(io.StringIO(text))
+        try:
+            frame = pd.read_csv(io.StringIO(text))
+        except Exception as exc:
+            raise AppError(400, 'INVENTORY_IMPORT_INVALID', 'CSV could not be parsed', {'error': str(exc)}) from exc
         return self._parse_dataframe(frame, ImportFormat.CSV)
 
     def _parse_excel(self, raw_bytes: bytes) -> InventoryImportPreview:
-        frame = pd.read_excel(io.BytesIO(raw_bytes))
+        try:
+            frame = pd.read_excel(io.BytesIO(raw_bytes))
+        except Exception as exc:
+            raise AppError(400, 'INVENTORY_IMPORT_INVALID', 'Excel file could not be parsed', {'error': str(exc)}) from exc
         return self._parse_dataframe(frame, ImportFormat.EXCEL)
 
     def _parse_dataframe(self, frame: pd.DataFrame, source_format: ImportFormat) -> InventoryImportPreview:
@@ -392,7 +593,19 @@ class InventoryService:
                     host.groups.add(group_name)
                     groups.setdefault(group_name, NormalizedGroup(name=group_name))
 
-        return self._build_preview(hosts, groups, {}, warnings, source_format)
+        host_column_name = str(host_column) if host_column is not None else ''
+        address_column_name = str(address_column) if address_column is not None else ''
+        group_column_name = str(group_column) if group_column is not None else ''
+        inferred_columns = [str(column) for column in frame.columns if str(column) not in {host_column_name, address_column_name, group_column_name}]
+        preview = self._build_preview(hosts, groups, {}, warnings, source_format)
+        preview.metadata = {
+            'row_count': int(frame.shape[0]),
+            'host_column': host_column_name,
+            'address_column': address_column_name,
+            'group_column': group_column_name,
+            'inferred_variable_columns': inferred_columns,
+        }
+        return preview
 
     def _build_preview(
         self,

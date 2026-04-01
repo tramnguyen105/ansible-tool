@@ -57,6 +57,64 @@
           </div>
         </div>
 
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="rounded-2xl border border-console-edge bg-console-deep/60 p-4">
+            <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Detected Host Column</p>
+            <p class="mt-2 text-sm text-white">{{ previewData?.metadata?.host_column || 'N/A' }}</p>
+          </div>
+          <div class="rounded-2xl border border-console-edge bg-console-deep/60 p-4">
+            <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Detected Group Column</p>
+            <p class="mt-2 text-sm text-white">{{ previewData?.metadata?.group_column || 'N/A' }}</p>
+          </div>
+        </div>
+
+        <div v-if="previewData?.metadata?.inferred_variable_columns?.length" class="rounded-2xl border border-console-edge/80 bg-console-deep/50 p-4 text-sm text-console-muted">
+          <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Inferred Variable Columns</p>
+          <p class="mt-2">{{ previewData.metadata.inferred_variable_columns.join(', ') }}</p>
+        </div>
+
+        <div v-if="previewData?.hosts?.length" class="rounded-2xl border border-console-edge bg-console-deep/40 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Sample Hosts</p>
+          <div class="mt-3 overflow-x-auto">
+            <table class="min-w-full divide-y divide-console-edge/60 text-sm">
+              <thead>
+                <tr>
+                  <th class="px-2 py-2 text-left text-console-muted">Name</th>
+                  <th class="px-2 py-2 text-left text-console-muted">Address</th>
+                  <th class="px-2 py-2 text-left text-console-muted">Groups</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-console-edge/40">
+                <tr v-for="host in previewData.hosts.slice(0, 6)" :key="host.name">
+                  <td class="px-2 py-2 text-white">{{ host.name }}</td>
+                  <td class="px-2 py-2 text-console-muted">{{ host.address || 'N/A' }}</td>
+                  <td class="px-2 py-2 text-console-muted">{{ host.groups?.length ? host.groups.join(', ') : 'None' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="previewData?.groups?.length" class="rounded-2xl border border-console-edge bg-console-deep/40 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Sample Groups</p>
+          <div class="mt-3 overflow-x-auto">
+            <table class="min-w-full divide-y divide-console-edge/60 text-sm">
+              <thead>
+                <tr>
+                  <th class="px-2 py-2 text-left text-console-muted">Name</th>
+                  <th class="px-2 py-2 text-left text-console-muted">Children</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-console-edge/40">
+                <tr v-for="group in previewData.groups.slice(0, 6)" :key="group.name">
+                  <td class="px-2 py-2 text-white">{{ group.name }}</td>
+                  <td class="px-2 py-2 text-console-muted">{{ group.children?.length ? group.children.join(', ') : 'None' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div v-if="previewData?.warnings.length" class="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
           <p v-for="warning in previewData.warnings" :key="warning">{{ warning }}</p>
         </div>
@@ -91,13 +149,15 @@ const step = ref(1)
 const format = ref('ini')
 const file = ref<File | null>(null)
 const previewData = ref<any>(null)
+const previewId = ref('')
+const previewChecksum = ref('')
 const name = ref('')
 const description = ref('')
 const isPreviewing = ref(false)
 const isImporting = ref(false)
 
 const selectedFileLabel = computed(() => file.value?.name ?? '')
-const canCommit = computed(() => Boolean(name.value.trim() && previewData.value))
+const canCommit = computed(() => Boolean(name.value.trim() && previewData.value && previewId.value && previewChecksum.value))
 
 watch(
   () => props.open,
@@ -113,6 +173,8 @@ function resetState() {
   format.value = 'ini'
   file.value = null
   previewData.value = null
+  previewId.value = ''
+  previewChecksum.value = ''
   name.value = ''
   description.value = ''
   isPreviewing.value = false
@@ -139,7 +201,9 @@ async function preview() {
     const form = new FormData()
     form.append('file', file.value)
     const response = await api.post(`/inventories/import/preview?source_format=${format.value}`, form)
-    previewData.value = response.data.data
+    previewData.value = response.data.data.preview
+    previewId.value = response.data.data.preview_id
+    previewChecksum.value = response.data.data.checksum
     name.value = file.value.name.replace(/\.[^.]+$/, '')
     step.value = 2
     app.pushToast('Preview generated', 'success', 'Review hosts, groups, and warnings before saving to the inventory database.')
@@ -166,7 +230,8 @@ async function commit() {
     const response = await api.post('/inventories/import/commit', {
       name: name.value.trim(),
       description: description.value.trim(),
-      preview: previewData.value,
+      preview_id: previewId.value,
+      checksum: previewChecksum.value,
     })
     app.pushToast('Inventory imported', 'success', 'The normalized inventory is now available for targeting and job execution.')
     emit('saved', response.data.data)

@@ -16,17 +16,42 @@
       <CardStat label="Next due" :value="nextDueLabel" tone="timed" helper="The earliest enabled schedule due to run from the current list." />
     </div>
 
+    <section class="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Filters</p>
+          <h3 class="mt-2 text-[1.15rem] font-semibold text-white">Schedule library</h3>
+          <p class="mt-2 text-[0.96rem] text-slate-400">Filter by name, state, or execution mode to isolate schedules quickly.</p>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:min-w-[460px] xl:grid-cols-3">
+          <input v-model="search" :disabled="isLoading" placeholder="Search by schedule name" />
+          <select v-model="enabledFilter" :disabled="isLoading">
+            <option value="all">All states</option>
+            <option value="enabled">Enabled</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <select v-model="modeFilter" :disabled="isLoading">
+            <option value="all">All modes</option>
+            <option value="check">Check mode</option>
+            <option value="live">Live execution</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
     <div class="mt-6">
       <DataTable
         title="Schedule library"
         description="Review cron cadence, execution mode, and next run timing before allowing automation to continue unattended."
         :columns="columns"
-        :rows="rows"
+        :rows="filteredRows"
         :loading="isLoading"
         loading-title="Loading schedules"
         loading-description="Collecting recurring automation records and calculating the next visible dispatch windows."
-        empty-title="No schedules saved"
-        empty-description="Create a schedule after the same playbook has been validated manually with the intended inventory and credentials."
+        :empty-title="hasActiveFilters ? 'No schedules match your current filters' : 'No schedules saved'"
+        :empty-description="hasActiveFilters
+          ? 'Adjust or clear filters to review additional recurring automation entries.'
+          : 'Create a schedule after the same playbook has been validated manually with the intended inventory and credentials.'"
       >
         <template #name="{ row }">
           <div>
@@ -73,6 +98,15 @@
             <label class="field-label">Cron Expression</label>
             <input v-model="form.cron_expression" :disabled="isSaving || isLoadingLookups" placeholder="0 2 * * *" />
           </div>
+          <div class="md:col-span-2">
+            <label class="field-label">Description</label>
+            <textarea
+              v-model="form.description"
+              :disabled="isSaving || isLoadingLookups"
+              rows="3"
+              placeholder="Purpose, risk level, and operator notes for this recurring run."
+            />
+          </div>
           <div>
             <label class="field-label">Timezone</label>
             <input v-model="form.timezone" :disabled="isSaving || isLoadingLookups" />
@@ -108,9 +142,20 @@
           </div>
           <div>
             <label class="field-label">Target Value</label>
-            <input v-model="form.target_value" :disabled="isSaving || isLoadingLookups" placeholder="Optional host or group selector" />
+            <input
+              v-model="form.target_value"
+              :disabled="isSaving || isLoadingLookups"
+              :placeholder="form.target_type === 'all' ? 'Optional host or group selector' : 'Required when targeting hosts or groups'"
+            />
           </div>
         </div>
+
+        <BannerNotice
+          v-if="formError"
+          title="Fix schedule form errors"
+          tone="warn"
+          :text="formError"
+        />
 
         <div class="flex flex-wrap items-center gap-5 text-sm text-console-muted">
           <label class="flex items-center gap-2">
@@ -161,6 +206,11 @@ const playbooks = ref<any[]>([])
 const isLoading = ref(true)
 const isLoadingLookups = ref(false)
 const isSaving = ref(false)
+const hasLoadedLookups = ref(false)
+const search = ref('')
+const enabledFilter = ref('all')
+const modeFilter = ref('all')
+const formError = ref('')
 const form = reactive<any>({
   name: 'nightly-run',
   description: '',
@@ -191,6 +241,23 @@ const nextDueLabel = computed(() => {
     .sort()[0]
   return nextRun ? formatDateTime(nextRun) : 'None'
 })
+const hasActiveFilters = computed(() => {
+  return search.value.trim().length > 0 || enabledFilter.value !== 'all' || modeFilter.value !== 'all'
+})
+const filteredRows = computed(() => {
+  return rows.value.filter((row) => {
+    const matchesSearch = row.name.toLowerCase().includes(search.value.trim().toLowerCase())
+    const matchesEnabled =
+      enabledFilter.value === 'all' ||
+      (enabledFilter.value === 'enabled' && row.enabled) ||
+      (enabledFilter.value === 'disabled' && !row.enabled)
+    const matchesMode =
+      modeFilter.value === 'all' ||
+      (modeFilter.value === 'check' && row.check_mode) ||
+      (modeFilter.value === 'live' && !row.check_mode)
+    return matchesSearch && matchesEnabled && matchesMode
+  })
+})
 
 function resetForm() {
   selectedId.value = null
@@ -208,19 +275,22 @@ function resetForm() {
   form.check_mode = false
 }
 
-async function loadLookups() {
+async function loadLookups(force = false) {
+  if (hasLoadedLookups.value && !force) return
   isLoadingLookups.value = true
   try {
     const [inventoryResp, credentialResp, playbookResp] = await Promise.all([
       api.get('/inventories'),
-      api.get('/credentials'),
+      api.get('/credentials?active_only=true'),
       api.get('/playbooks'),
     ])
     inventories.value = inventoryResp.data.data
     credentials.value = credentialResp.data.data
     playbooks.value = playbookResp.data.data
+    hasLoadedLookups.value = true
     if (!selectedId.value) resetForm()
   } catch {
+    hasLoadedLookups.value = false
     app.pushToast('Schedule dependencies could not be loaded', 'error', 'Inventories, credentials, and playbooks must be available before a schedule can be saved.')
   } finally {
     isLoadingLookups.value = false
@@ -228,11 +298,13 @@ async function loadLookups() {
 }
 
 function openCreate() {
-  selectedId.value = null
+  formError.value = ''
+  resetForm()
   showDrawer.value = true
 }
 
 function openEdit(row: any) {
+  formError.value = ''
   selectedId.value = row.id
   form.name = row.name
   form.description = row.description || ''
@@ -251,6 +323,7 @@ function openEdit(row: any) {
 
 function closeDrawer() {
   if (isSaving.value) return
+  formError.value = ''
   showDrawer.value = false
   resetForm()
 }
@@ -274,11 +347,36 @@ watch(
   },
 )
 
+function validateForm() {
+  const cronPattern = /^(\S+\s+){4}\S+$/
+  const cron = form.cron_expression.trim()
+  const timezone = form.timezone.trim()
+  const targetValue = form.target_value.trim()
+  if (!form.name.trim()) return 'Schedule name is required.'
+  if (!cronPattern.test(cron)) return 'Cron expression must contain exactly five fields (for example: 0 2 * * *).'
+  if (!timezone) return 'Timezone is required.'
+  if (!form.inventory_id) return 'Inventory is required.'
+  if (!form.credential_id) return 'Credential is required.'
+  if (!form.playbook_id) return 'Playbook is required.'
+  if (form.target_type !== 'all' && !targetValue) return 'Target value is required when target type is hosts or groups.'
+  return ''
+}
+
 async function save() {
+  formError.value = validateForm()
+  if (formError.value) {
+    app.pushToast(formError.value, 'error')
+    return
+  }
   isSaving.value = true
   try {
     const payload = {
       ...form,
+      name: form.name.trim(),
+      description: form.description.trim(),
+      cron_expression: form.cron_expression.trim(),
+      timezone: form.timezone.trim(),
+      target_value: form.target_value.trim(),
       extra_vars: form.extra_vars || {},
     }
     if (selectedId.value) {
