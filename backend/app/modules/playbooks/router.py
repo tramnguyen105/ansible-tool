@@ -2,11 +2,19 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import AuthContext, get_db, require_admin, require_csrf
-from app.modules.playbooks.schemas import PlaybookCreate, PlaybookRead, PlaybookUpdate, YamlValidationRequest, YamlValidationResult
+from app.modules.playbooks.schemas import (
+    PlaybookCreate,
+    PlaybookRead,
+    PlaybookSummaryRead,
+    PlaybookUpdate,
+    PlaybookUsageRead,
+    YamlValidationRequest,
+    YamlValidationResult,
+)
 from app.modules.playbooks.service import PlaybookService
 from app.schemas.common import ApiResponse
 
@@ -15,9 +23,23 @@ router = APIRouter(prefix='/playbooks', tags=['playbooks'])
 
 
 @router.get('', response_model=ApiResponse[list[PlaybookRead]])
-def list_playbooks(_: AuthContext = Depends(require_admin), db: Session = Depends(get_db)) -> ApiResponse[list[PlaybookRead]]:
+def list_playbooks(
+    _: AuthContext = Depends(require_admin),
+    db: Session = Depends(get_db),
+    generated: bool | None = Query(default=None),
+) -> ApiResponse[list[PlaybookRead]]:
     service = PlaybookService(db)
-    return ApiResponse(data=service.list())
+    return ApiResponse(data=service.list(is_generated=generated))
+
+
+@router.get('/summary', response_model=ApiResponse[list[PlaybookSummaryRead]])
+def list_playbooks_summary(
+    _: AuthContext = Depends(require_admin),
+    db: Session = Depends(get_db),
+    generated: bool | None = Query(default=None),
+) -> ApiResponse[list[PlaybookSummaryRead]]:
+    service = PlaybookService(db)
+    return ApiResponse(data=service.list_summary(is_generated=generated))
 
 
 @router.get('/{playbook_id}', response_model=ApiResponse[PlaybookRead])
@@ -43,6 +65,12 @@ def delete_playbook(playbook_id: UUID, auth: AuthContext = Depends(require_admin
     service = PlaybookService(db)
     service.delete(playbook_id, user_id=auth.user.id)
     return ApiResponse(message='Playbook deleted', data={})
+
+
+@router.get('/{playbook_id}/usage', response_model=ApiResponse[PlaybookUsageRead])
+def get_playbook_usage(playbook_id: UUID, _: AuthContext = Depends(require_admin), db: Session = Depends(get_db)) -> ApiResponse[PlaybookUsageRead]:
+    service = PlaybookService(db)
+    return ApiResponse(data=service.usage(playbook_id))
 
 
 @router.post('/validate-yaml', response_model=ApiResponse[YamlValidationResult], dependencies=[Depends(require_csrf)])

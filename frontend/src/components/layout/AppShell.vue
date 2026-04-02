@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-slate-950 text-console-ink">
+  <div class="min-h-screen bg-slate-50 text-console-ink">
     <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]">
       <AppSidebar />
       <div class="flex min-h-screen min-w-0 flex-col lg:h-screen lg:overflow-hidden">

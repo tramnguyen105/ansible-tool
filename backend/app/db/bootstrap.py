@@ -12,11 +12,21 @@ settings = get_settings()
 
 
 def bootstrap_defaults(session: Session) -> None:
+    default_roles = {
+        'admin': 'Platform administrator',
+        'operator': 'Automation operator with write access',
+        'viewer': 'Read-only observer',
+    }
+    for role_name, description in default_roles.items():
+        role = session.scalar(select(Role).where(Role.name == role_name))
+        if role is None:
+            session.add(Role(name=role_name, description=description))
+    session.flush()
+
     admin_role = session.scalar(select(Role).where(Role.name == 'admin'))
     if admin_role is None:
-        admin_role = Role(name='admin', description='Platform administrator')
-        session.add(admin_role)
-        session.flush()
+        session.commit()
+        return
 
     if not settings.allow_local_auth:
         session.commit()

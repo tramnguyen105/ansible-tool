@@ -16,11 +16,11 @@
       <CardStat label="Variables" :value="variableBearingInventories" tone="templated" :helper="variableBearingInventories ? 'Inventories include scoped variables.' : 'No inventory variables defined yet.'" />
     </div>
 
-    <section class="mt-6 rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-950/20">
+    <section class="mt-6 rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-300/25">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Inventory Control</p>
-          <h3 class="mt-2 text-xl font-semibold text-white">Target management workspace</h3>
+          <h3 class="mt-2 text-xl font-semibold text-slate-900">Target management workspace</h3>
           <p class="mt-2 max-w-3xl text-sm leading-6 text-console-muted">
             Search inventories quickly, review host and group counts, and keep imports normalized before they are used by operators.
           </p>
@@ -50,7 +50,7 @@
       >
         <template #name="{ row }">
           <div>
-            <p class="font-medium text-white">{{ row.name }}</p>
+            <p class="font-medium text-slate-900">{{ row.name }}</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.description || 'No description provided' }}</p>
           </div>
         </template>
@@ -59,13 +59,13 @@
         </template>
         <template #hosts="{ row }">
           <div>
-            <p class="text-white">{{ row.host_count }} hosts</p>
+            <p class="text-slate-900">{{ row.host_count }} hosts</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.enabled_host_count }} enabled</p>
           </div>
         </template>
         <template #groups="{ row }">
           <div>
-            <p class="text-white">{{ row.group_count }} groups</p>
+            <p class="text-slate-900">{{ row.group_count }} groups</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.variable_count }} variable scopes</p>
           </div>
         </template>
@@ -77,7 +77,7 @@
         </template>
         <template #actions="{ row }">
           <div class="flex justify-end gap-3 text-sm">
-            <button class="text-console-glow transition hover:text-white" :disabled="isSaving" @click="openEdit(row)">Edit</button>
+            <button class="text-console-glow transition hover:text-slate-900" :disabled="isSaving" @click="openEdit(row)">Edit</button>
             <button class="text-rose-300 transition hover:text-rose-200 disabled:opacity-50" :disabled="isSaving" @click="promptDelete(row)">Delete</button>
           </div>
         </template>
@@ -89,7 +89,7 @@
     <DrawerPanel :open="showDeleteConfirm" title="Delete inventory" @close="closeDeleteConfirm">
       <div class="space-y-4">
         <p class="text-sm text-console-muted">
-          Deleting <span class="font-medium text-white">{{ deleteCandidate?.name }}</span> is permanent.
+          Deleting <span class="font-medium text-slate-900">{{ deleteCandidate?.name }}</span> is permanent.
           This inventory is referenced by {{ deleteUsage.schedules_total }} schedules ({{ deleteUsage.schedules_enabled }} enabled) and {{ deleteUsage.jobs_total }} jobs ({{ deleteUsage.jobs_active }} active).
         </p>
         <div>
@@ -131,7 +131,7 @@
         <div v-if="editorMode === 'guided'" class="grid gap-4 lg:grid-cols-2">
           <div class="space-y-3 rounded-2xl border border-console-edge bg-console-deep/40 p-4">
             <div class="flex items-center justify-between">
-              <p class="text-sm font-medium text-white">Hosts</p>
+              <p class="text-sm font-medium text-slate-900">Hosts</p>
               <button class="btn-secondary" :disabled="isSaving" @click="addHost">Add host</button>
             </div>
             <div v-for="(host, index) in formHosts" :key="`host-${index}`" class="space-y-2 rounded-xl border border-console-edge/70 p-3">
@@ -148,7 +148,7 @@
           </div>
           <div class="space-y-3 rounded-2xl border border-console-edge bg-console-deep/40 p-4">
             <div class="flex items-center justify-between">
-              <p class="text-sm font-medium text-white">Groups</p>
+              <p class="text-sm font-medium text-slate-900">Groups</p>
               <button class="btn-secondary" :disabled="isSaving" @click="addGroup">Add group</button>
             </div>
             <div v-for="(group, index) in formGroups" :key="`group-${index}`" class="space-y-2 rounded-xl border border-console-edge/70 p-3">

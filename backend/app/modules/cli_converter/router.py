@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import AuthContext, get_db, require_admin, require_csrf
 from app.modules.cli_converter.schemas import (
+    CliConversionJobRead,
     CliGenerateRequest,
     CliGenerateResult,
     CliParseRequest,
     CliParseResult,
     CliSavePlaybookRequest,
     CliSaveTemplateRequest,
+    CliValidateGeneratedRequest,
+    CliValidateGeneratedResult,
     CliValidateResult,
 )
 from app.modules.cli_converter.service import CliConverterService
@@ -31,7 +34,10 @@ def parse_cli(payload: CliParseRequest, _: AuthContext = Depends(require_admin),
 @router.post('/generate', response_model=ApiResponse[CliGenerateResult], dependencies=[Depends(require_csrf)])
 def generate_cli(payload: CliGenerateRequest, auth: AuthContext = Depends(require_admin), db: Session = Depends(get_db)) -> ApiResponse[CliGenerateResult]:
     service = CliConverterService(db)
-    return ApiResponse(message='Artifacts generated', data=service.generate(payload.config_text, payload.output_type, user_id=auth.user.id))
+    return ApiResponse(
+        message='Artifacts generated',
+        data=service.generate(payload.config_text, payload.output_type, user_id=auth.user.id, parsed=payload.parsed),
+    )
 
 
 @router.post('/validate', response_model=ApiResponse[CliValidateResult], dependencies=[Depends(require_csrf)])
@@ -39,6 +45,17 @@ def validate_cli(payload: CliParseRequest, _: AuthContext = Depends(require_admi
     service = CliConverterService(db)
     result = service.validate(payload.config_text)
     return ApiResponse(message='Validation complete', data=CliValidateResult(**result))
+
+
+@router.post('/validate-generated', response_model=ApiResponse[CliValidateGeneratedResult], dependencies=[Depends(require_csrf)])
+def validate_generated(
+    payload: CliValidateGeneratedRequest,
+    _: AuthContext = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[CliValidateGeneratedResult]:
+    service = CliConverterService(db)
+    result = service.validate_generated(payload.output_type, payload.generated_content)
+    return ApiResponse(message='Generated artifact validation complete', data=result)
 
 
 @router.post('/save-as-playbook', response_model=ApiResponse[PlaybookRead], dependencies=[Depends(require_csrf)])
@@ -51,3 +68,13 @@ def save_as_playbook(payload: CliSavePlaybookRequest, auth: AuthContext = Depend
 def save_as_template(payload: CliSaveTemplateRequest, auth: AuthContext = Depends(require_admin), db: Session = Depends(get_db)) -> ApiResponse[TemplateRead]:
     service = CliConverterService(db)
     return ApiResponse(message='Template saved', data=service.save_as_template(payload, user_id=auth.user.id))
+
+
+@router.get('/history', response_model=ApiResponse[list[CliConversionJobRead]])
+def list_history(
+    _: AuthContext = Depends(require_admin),
+    db: Session = Depends(get_db),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> ApiResponse[list[CliConversionJobRead]]:
+    service = CliConverterService(db)
+    return ApiResponse(data=service.list_history(limit=limit))

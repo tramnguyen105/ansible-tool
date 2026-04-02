@@ -1,19 +1,19 @@
 <template>
-  <header class="border-b border-console-edge/60 bg-slate-950/85 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+  <header class="border-b border-console-edge/60 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="text-[1.2rem] font-semibold text-white">{{ pageTitle }}</p>
-        <p class="mt-0.5 text-[0.96rem] text-slate-400">{{ pageSubtitle }}</p>
+        <p class="text-[1.2rem] font-semibold text-slate-900">{{ pageTitle }}</p>
+        <p class="mt-0.5 text-[0.96rem] text-slate-600">{{ pageSubtitle }}</p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 md:justify-end">
-        <span class="rounded-full border border-slate-800 bg-slate-900 px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-slate-300">
+        <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-slate-700">
           {{ environmentLabel }}
         </span>
-        <span class="rounded-full border border-slate-800 bg-slate-900 px-3 py-1.5 text-[0.96rem] text-slate-300">
+        <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[0.96rem] text-slate-700">
           {{ auth.user?.display_name || auth.user?.username }}
         </span>
-        <button class="rounded-full border border-slate-800 px-4 py-1.5 text-[0.96rem] text-slate-200 transition hover:bg-slate-900" @click="logout">
+        <button class="rounded-full border border-slate-200 px-4 py-1.5 text-[0.96rem] text-slate-800 transition hover:bg-white" @click="logout">
           Sign out
         </button>
       </div>
@@ -45,6 +45,7 @@ const routeMeta: Record<string, { title: string; subtitle: string }> = {
   '/jobs': { title: 'Jobs', subtitle: 'Execution history and active automation runs.' },
   '/schedules': { title: 'Schedules', subtitle: 'Planned automation runs and recurring execution.' },
   '/audit': { title: 'Audit Logs', subtitle: 'Authentication, change, and execution records.' },
+  '/users': { title: 'Users', subtitle: 'RBAC assignments and local or LDAP user accounts.' },
   '/settings': { title: 'Settings', subtitle: 'Runtime posture and environment context.' },
 }
 
@@ -59,7 +60,7 @@ const environmentLabel = computed(() => environment.value || 'runtime')
 
 onMounted(async () => {
   try {
-    const response = await api.get('/system/settings')
+    const response = await api.get('/health')
     environment.value = response.data.data?.environment || 'runtime'
   } catch {
     environment.value = 'runtime'

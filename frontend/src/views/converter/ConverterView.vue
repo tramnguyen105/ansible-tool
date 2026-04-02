@@ -12,12 +12,12 @@
     <div class="grid gap-4 xl:grid-cols-3">
       <CardStat label="Generated playbooks" :value="playbooks.length" tone="playbooks" :helper="playbooks.length ? 'Converted playbooks saved from the wizard.' : 'No generated playbooks saved yet.'" />
       <CardStat label="Generated templates" :value="templates.length" tone="templates" :helper="templates.length ? 'Template artifacts are available for reuse.' : 'No generated templates saved yet.'" />
-      <CardStat label="Workflow" value="Guided" tone="reviewed" helper="Operators can parse, validate, edit, and save before execution." />
+      <CardStat label="Recent conversions" :value="history.length" tone="reviewed" helper="Recent conversion jobs are tracked for audit and replay." />
     </div>
 
     <div class="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-      <section class="rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-950/20">
-        <div class="mb-5 rounded-2xl border border-cyan-500/20 bg-cyan-500/8 px-4 py-4 text-sm text-cyan-50">
+      <section class="rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-300/25">
+        <div class="mb-5 rounded-2xl border border-cyan-500/20 bg-cyan-50 px-4 py-4 text-sm text-cyan-700">
           <p class="font-semibold uppercase tracking-[0.2em] text-cyan-200">Conversion workflow</p>
           <p class="mt-2 leading-6 text-console-ink/90">
             Paste Cisco CLI, choose an output type, review parser warnings, then save the artifact only after the raw YAML or template output looks intentional.
@@ -41,7 +41,7 @@
         >
           <template #name="{ row }">
             <div>
-              <p class="font-medium text-white">{{ row.name }}</p>
+              <p class="font-medium text-slate-900">{{ row.name }}</p>
               <p class="mt-1 text-xs text-console-muted">{{ row.description || 'Generated from CLI conversion' }}</p>
             </div>
           </template>
@@ -61,9 +61,32 @@
         >
           <template #name="{ row }">
             <div>
-              <p class="font-medium text-white">{{ row.name }}</p>
+              <p class="font-medium text-slate-900">{{ row.name }}</p>
               <p class="mt-1 text-xs text-console-muted">{{ row.description || 'Generated from CLI conversion' }}</p>
             </div>
+          </template>
+        </DataTable>
+
+        <DataTable
+          title="Conversion History"
+          description="Most recent converter jobs with warning totals and output type."
+          :columns="historyColumns"
+          :rows="history"
+          :loading="isLoading"
+          loading-title="Loading conversion history"
+          loading-description="Collecting recent CLI conversion jobs."
+          empty-title="No conversion history"
+          empty-description="Parse and generate a configuration to create history entries."
+          compact
+        >
+          <template #output_type="{ row }">
+            <span class="text-console-muted">{{ row.output_type }}</span>
+          </template>
+          <template #warning_count="{ row }">
+            <span class="text-console-muted">{{ row.warning_count }}</span>
+          </template>
+          <template #created_at="{ row }">
+            <span class="text-console-muted">{{ formatDateTime(row.created_at) }}</span>
           </template>
         </DataTable>
       </div>
@@ -80,19 +103,31 @@ import DataTable from '../../components/common/DataTable.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
 import CliConversionWizard from '../../components/wizards/CliConversionWizard.vue'
 import { useAppStore } from '../../stores/app'
+import { formatDateTime } from '../../utils/format'
 
 const app = useAppStore()
 const playbooks = ref<any[]>([])
 const templates = ref<any[]>([])
+const history = ref<any[]>([])
 const isLoading = ref(true)
 const artifactColumns = [{ key: 'name', label: 'Artifact' }]
+const historyColumns = [
+  { key: 'output_type', label: 'Output' },
+  { key: 'warning_count', label: 'Warnings' },
+  { key: 'created_at', label: 'Created' },
+]
 
 async function refreshLinkedArtifacts() {
   isLoading.value = true
   try {
-    const [playbookResp, templateResp] = await Promise.all([api.get('/playbooks'), api.get('/templates')])
-    playbooks.value = playbookResp.data.data.filter((item: any) => item.is_generated)
+    const [playbookResp, templateResp, historyResp] = await Promise.all([
+      api.get('/playbooks/summary?generated=true'),
+      api.get('/templates/summary?source_type=converter'),
+      api.get('/cli-converter/history?limit=12'),
+    ])
+    playbooks.value = playbookResp.data.data
     templates.value = templateResp.data.data
+    history.value = historyResp.data.data
   } catch {
     app.pushToast('Generated artifacts could not be refreshed', 'error', 'Check API reachability and retry artifact synchronization.')
   } finally {

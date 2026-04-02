@@ -4,11 +4,12 @@ import { authApi } from '../api/modules'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null as null | { username: string; display_name?: string },
+    user: null as null | { id: string; username: string; display_name?: string; roles?: Array<{ name: string }> },
     ready: false,
   }),
   getters: {
     isAuthenticated: (state) => !!state.user,
+    isAdmin: (state) => !!state.user?.roles?.some((role) => role.name === 'admin'),
   },
   actions: {
     async ensureSession() {

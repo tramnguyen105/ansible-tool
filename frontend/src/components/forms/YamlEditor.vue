@@ -4,14 +4,14 @@
       <span>YAML Editor</span>
       <span>{{ editorMode }}</span>
     </div>
-    <div v-if="fallbackMode" class="border-b border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+    <div v-if="fallbackMode" class="border-b border-amber-300/60 bg-amber-100 px-4 py-3 text-sm text-amber-900">
       Monaco could not be initialized in this browser session. Falling back to a plain text editor.
     </div>
     <div v-show="!fallbackMode" ref="editorElement" class="min-h-[380px] w-full" />
     <textarea
       v-if="fallbackMode"
       v-model="fallbackValue"
-      class="min-h-[380px] w-full resize-y bg-transparent px-4 py-3 font-mono text-sm text-slate-100 outline-none"
+      class="min-h-[380px] w-full resize-y bg-transparent px-4 py-3 font-mono text-sm text-slate-900 outline-none"
       spellcheck="false"
       autocapitalize="off"
       autocomplete="off"
@@ -74,20 +74,20 @@ async function setupMonaco() {
     const monaco = await import('monaco-editor/esm/vs/editor/editor.api')
 
     monaco.editor.defineTheme('ansible-console', {
-      base: 'vs-dark',
+      base: 'vs',
       inherit: true,
       rules: [
-        { token: 'string', foreground: '8DEBFF' },
-        { token: 'keyword', foreground: '58D2D9' },
-        { token: 'number', foreground: 'F6C177' },
+        { token: 'string', foreground: '0F766E' },
+        { token: 'keyword', foreground: '1D4ED8' },
+        { token: 'number', foreground: 'B45309' },
       ],
       colors: {
-        'editor.background': '#0f1b2b',
-        'editorLineNumber.foreground': '#4e6787',
-        'editorLineNumber.activeForeground': '#e7eff7',
-        'editorIndentGuide.background1': '#223149',
-        'editor.selectionBackground': '#23496f',
-        'editor.inactiveSelectionBackground': '#19314b',
+        'editor.background': '#ffffff',
+        'editorLineNumber.foreground': '#94a3b8',
+        'editorLineNumber.activeForeground': '#334155',
+        'editorIndentGuide.background1': '#e2e8f0',
+        'editor.selectionBackground': '#dbeafe',
+        'editor.inactiveSelectionBackground': '#eff6ff',
       },
     })
 

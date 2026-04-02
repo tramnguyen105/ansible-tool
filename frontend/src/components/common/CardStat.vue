@@ -1,13 +1,13 @@
 <template>
-  <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5">
     <div class="flex items-start justify-between gap-3">
       <div>
         <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">{{ label }}</p>
-        <p class="mt-3 text-[2rem] font-semibold text-white">{{ value }}</p>
+        <p class="mt-3 text-[2rem] font-semibold text-slate-900">{{ value }}</p>
       </div>
       <span class="rounded-full px-2.5 py-1 text-[0.72rem] font-medium uppercase tracking-[0.1em]" :class="toneClass">{{ tone }}</span>
     </div>
-    <p v-if="helper" class="mt-3 text-[0.96rem] leading-7 text-slate-400">{{ helper }}</p>
+    <p v-if="helper" class="mt-3 text-[0.96rem] leading-7 text-slate-600">{{ helper }}</p>
   </section>
 </template>
 
@@ -25,18 +25,18 @@ const toneClass = computed(() => {
   switch (props.tone) {
     case 'managed':
     case 'identity':
-      return 'bg-sky-500/10 text-sky-200'
+      return 'bg-sky-500/10 text-sky-700'
     case 'secured':
     case 'auth':
-      return 'bg-emerald-500/10 text-emerald-200'
+      return 'bg-emerald-50 text-emerald-700'
     case 'validated':
     case 'runtime':
-      return 'bg-violet-500/10 text-violet-200'
+      return 'bg-violet-500/10 text-violet-700'
     case 'tracked':
     case 'minutes':
-      return 'bg-amber-500/10 text-amber-200'
+      return 'bg-amber-50 text-amber-700'
     default:
-      return 'bg-slate-800 text-slate-300'
+      return 'bg-slate-100 text-slate-700'
   }
 })
 </script>

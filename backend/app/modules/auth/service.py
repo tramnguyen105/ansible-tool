@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from ldap3 import ALL, Connection, Server
 from ldap3.core.exceptions import LDAPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError
-from app.core.security import build_session_expiry, generate_token, hash_token, verify_password
+from app.core.security import build_session_expiry, generate_token, hash_password, hash_token, verify_password
 from app.models.auth import AuthSession, User
+from app.models.system import SystemConfiguration
 from app.modules.audit.service import AuditService
 from app.modules.auth.repository import AuthRepository
 
@@ -34,28 +36,91 @@ class LoginResult:
 
 
 class AuthService:
+    _login_attempts: dict[str, list[datetime]] = {}
+    _max_attempts = 5
+    _window_minutes = 10
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self.repository = AuthRepository(session)
         self.audit = AuditService(session)
 
-    def _ldap_authenticate(self, username: str, password: str) -> dict[str, Any]:
-        server = Server(settings.ldap_server_uri, get_info=ALL, use_ssl=settings.ldap_use_ssl)
+    @classmethod
+    def _throttle_key(cls, username: str) -> str:
+        return username.strip().lower()
 
-        bind_user = settings.ldap_bind_dn
+    @classmethod
+    def _ensure_not_rate_limited(cls, username: str) -> None:
+        key = cls._throttle_key(username)
+        now = datetime.now(timezone.utc)
+        window_start = now - timedelta(minutes=cls._window_minutes)
+        attempts = [ts for ts in cls._login_attempts.get(key, []) if ts >= window_start]
+        cls._login_attempts[key] = attempts
+        if len(attempts) >= cls._max_attempts:
+            raise AppError(429, 'AUTH_RATE_LIMITED', 'Too many failed login attempts. Please wait and try again.')
+
+    @classmethod
+    def _record_failed_attempt(cls, username: str) -> None:
+        key = cls._throttle_key(username)
+        now = datetime.now(timezone.utc)
+        attempts = cls._login_attempts.get(key, [])
+        attempts.append(now)
+        cls._login_attempts[key] = attempts[-cls._max_attempts * 4 :]
+
+    @classmethod
+    def _clear_failed_attempts(cls, username: str) -> None:
+        cls._login_attempts.pop(cls._throttle_key(username), None)
+
+    def _effective_auth_config(self) -> dict[str, Any]:
+        config = self.session.scalar(select(SystemConfiguration).where(SystemConfiguration.singleton_key == 'default'))
+        if config is None:
+            return {
+                'ldap_enabled': settings.ldap_enabled,
+                'allow_local_auth': settings.allow_local_auth,
+                'ldap_server_uri': settings.ldap_server_uri,
+                'ldap_use_ssl': settings.ldap_use_ssl,
+                'ldap_bind_dn': settings.ldap_bind_dn,
+                'ldap_search_base': settings.ldap_search_base,
+                'ldap_search_filter': settings.ldap_search_filter,
+                'ldap_username_attribute': settings.ldap_username_attribute,
+                'ldap_user_dn_template': settings.ldap_user_dn_template,
+            }
+        return {
+            'ldap_enabled': config.ldap_enabled,
+            'allow_local_auth': config.allow_local_auth,
+            'ldap_server_uri': config.ldap_server_uri,
+            'ldap_use_ssl': config.ldap_use_ssl,
+            'ldap_bind_dn': config.ldap_bind_dn,
+            'ldap_search_base': config.ldap_search_base,
+            'ldap_search_filter': config.ldap_search_filter,
+            'ldap_username_attribute': config.ldap_username_attribute,
+            'ldap_user_dn_template': config.ldap_user_dn_template,
+        }
+
+    def auth_modes(self) -> dict[str, bool]:
+        auth_config = self._effective_auth_config()
+        return {
+            'ldap_enabled': bool(auth_config['ldap_enabled']),
+            'allow_local_auth': bool(auth_config['allow_local_auth']),
+        }
+
+    def _ldap_authenticate(self, username: str, password: str, auth_config: dict[str, Any]) -> dict[str, Any]:
+        server = Server(auth_config['ldap_server_uri'], get_info=ALL, use_ssl=auth_config['ldap_use_ssl'])
+
+        bind_user = auth_config.get('ldap_bind_dn')
         bind_password = settings.ldap_bind_password
         found_dn: str | None = None
         attributes: dict[str, Any] = {}
 
-        if settings.ldap_user_dn_template:
-            found_dn = settings.ldap_user_dn_template.format(username=username)
-        elif bind_user and bind_password and settings.ldap_search_base:
+        if auth_config.get('ldap_user_dn_template'):
+            found_dn = auth_config['ldap_user_dn_template'].format(username=username)
+        elif bind_user and bind_password and auth_config.get('ldap_search_base'):
             with Connection(server, user=bind_user, password=bind_password, auto_bind=True) as conn:
-                search_filter = settings.ldap_search_filter.format(username=username)
+                search_filter = auth_config['ldap_search_filter'].format(username=username)
                 conn.search(
-                    search_base=settings.ldap_search_base,
+                    search_base=auth_config['ldap_search_base'],
                     search_filter=search_filter,
-                    attributes=['displayName', 'mail', settings.ldap_username_attribute],
+                    attributes=['displayName', 'mail', auth_config['ldap_username_attribute']],
                 )
                 if not conn.entries:
                     raise AppError(401, 'AUTH_INVALID', 'Invalid username or password')
@@ -97,25 +162,28 @@ class AuthService:
         username = username.strip()
         if not username or not password:
             raise AppError(400, 'AUTH_INVALID_INPUT', 'Username and password are required')
+        self._ensure_not_rate_limited(username)
 
+        auth_config = self._effective_auth_config()
         auth_payload: dict[str, Any] | None = None
         auth_source = 'ldap'
 
-        if settings.ldap_enabled:
+        if auth_config['ldap_enabled']:
             try:
-                auth_payload = self._ldap_authenticate(username, password)
+                auth_payload = self._ldap_authenticate(username, password, auth_config)
             except AppError:
-                if not settings.allow_local_auth:
+                if not auth_config['allow_local_auth']:
                     raise
             except LDAPException as exc:
-                if not settings.allow_local_auth:
+                if not auth_config['allow_local_auth']:
                     raise AppError(502, 'LDAP_UNAVAILABLE', 'LDAP authentication failed', {'error': str(exc)}) from exc
 
-        if auth_payload is None and settings.allow_local_auth:
+        if auth_payload is None and auth_config['allow_local_auth']:
             auth_source = 'local'
             auth_payload = self._local_authenticate(username, password)
 
         if auth_payload is None:
+            self._record_failed_attempt(username)
             raise AppError(401, 'AUTH_INVALID', 'Invalid username or password')
 
         user = self.repository.upsert_user(
@@ -125,7 +193,12 @@ class AuthService:
             ldap_dn=auth_payload.get('ldap_dn'),
             auth_source=auth_source,
         )
-        self.repository.assign_role(user, 'admin')
+        is_local_admin = user.auth_source == 'local' and user.username == settings.local_admin_username
+        if is_local_admin:
+            self.repository.assign_role(user, 'admin')
+        elif not user.roles:
+            self.repository.assign_role(user, 'operator')
+        self._clear_failed_attempts(username)
         user.last_login_at = datetime.now(timezone.utc)
         self.session.flush()
         return user
@@ -188,5 +261,28 @@ class AuthService:
             message=f'User {username} logged out',
             user_id=user_id,
             ip_address=ip_address,
+        )
+        self.session.commit()
+
+    def change_password(self, *, user: User, current_password: str, new_password: str, context: RequestContext) -> None:
+        if len(new_password) < 8:
+            raise AppError(400, 'PASSWORD_INVALID', 'New password must be at least 8 characters')
+        if current_password == new_password:
+            raise AppError(400, 'PASSWORD_INVALID', 'New password must be different from current password')
+        if not user.local_password_hash:
+            raise AppError(400, 'PASSWORD_RESET_UNAVAILABLE', 'Password reset is only available for local accounts')
+        if not verify_password(current_password, user.local_password_hash):
+            raise AppError(400, 'PASSWORD_INVALID', 'Current password is incorrect')
+
+        user.local_password_hash = hash_password(new_password)
+        self.session.flush()
+        self.audit.record(
+            action='password.reset',
+            resource_type='user',
+            resource_id=str(user.id),
+            message=f'Password reset for {user.username}',
+            user_id=user.id,
+            ip_address=context.ip_address,
+            user_agent=context.user_agent,
         )
         self.session.commit()

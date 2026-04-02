@@ -1,15 +1,15 @@
 <template>
   <DrawerPanel :open="open" title="Run Job" @close="emitClose">
     <div class="space-y-5">
-      <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+      <div class="rounded-2xl border border-amber-500/30 bg-amber-50 p-4 text-sm text-amber-700">
         Live execution can reach production infrastructure immediately. Check mode is enabled by default for safety.
       </div>
 
-      <div v-if="formError" class="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-100">
+      <div v-if="formError" class="rounded-2xl border border-rose-500/30 bg-rose-50 p-4 text-sm text-rose-700">
         {{ formError }}
       </div>
 
-      <div v-if="isLoadingLookups" class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-400">
+      <div v-if="isLoadingLookups" class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
         Loading inventories, credentials, and playbooks…
       </div>
 
@@ -50,7 +50,7 @@
         </div>
       </div>
 
-      <label class="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-[0.97rem] text-slate-300">
+      <label class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[0.97rem] text-slate-700">
         <input v-model="form.check_mode" :disabled="isSubmitting || isLoadingLookups" type="checkbox" class="w-auto" />
         Run in Ansible check mode
       </label>
@@ -61,7 +61,7 @@
       </div>
 
       <div class="flex items-center justify-between gap-3">
-        <p class="text-[0.95rem] text-slate-400">Review the inventory, credential, and playbook before queueing a live job.</p>
+        <p class="text-[0.95rem] text-slate-600">Review the inventory, credential, and playbook before queueing a live job.</p>
         <button class="btn-primary" :disabled="isSubmitting || isLoadingLookups || !canSubmit" @click="submit">
           {{ isSubmitting ? 'Queueing…' : 'Queue job' }}
         </button>

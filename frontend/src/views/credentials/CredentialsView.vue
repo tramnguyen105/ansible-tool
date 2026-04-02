@@ -16,11 +16,11 @@
       <CardStat label="Active" :value="activeCredentials" tone="active" :helper="activeCredentials ? 'Active credentials may be selected for jobs.' : 'All credentials are currently inactive.'" />
     </div>
 
-    <section class="mt-6 rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-950/20">
+    <section class="mt-6 rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-300/25">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Credential Control</p>
-          <h3 class="mt-2 text-xl font-semibold text-white">Operator credential catalog</h3>
+          <h3 class="mt-2 text-xl font-semibold text-slate-900">Operator credential catalog</h3>
           <p class="mt-2 max-w-3xl text-sm leading-6 text-console-muted">
             Keep credential naming explicit, distinguish authentication methods clearly, and avoid storing secrets that operators no longer need.
           </p>
@@ -50,7 +50,7 @@
       >
         <template #name="{ row }">
           <div>
-            <p class="font-medium text-white">{{ row.name }}</p>
+            <p class="font-medium text-slate-900">{{ row.name }}</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.description || 'No description provided' }}</p>
           </div>
         </template>
@@ -60,7 +60,7 @@
         </template>
         <template #username="{ row }">
           <div>
-            <p class="text-white">{{ row.username }}</p>
+            <p class="text-slate-900">{{ row.username }}</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.secretSummary }}</p>
           </div>
         </template>
@@ -69,7 +69,7 @@
         </template>
         <template #actions="{ row }">
           <div class="flex justify-end gap-3 text-sm">
-            <button class="text-console-glow transition hover:text-white" :disabled="isSaving" @click="openEdit(row)">Edit</button>
+            <button class="text-console-glow transition hover:text-slate-900" :disabled="isSaving" @click="openEdit(row)">Edit</button>
             <button class="text-rose-300 transition hover:text-rose-200 disabled:opacity-50" :disabled="isSaving" @click="promptDelete(row)">Delete</button>
           </div>
         </template>
@@ -79,7 +79,7 @@
     <DrawerPanel :open="showDeleteConfirm" title="Delete credential" @close="closeDeleteConfirm">
       <div class="space-y-4">
         <p class="text-sm text-console-muted">
-          Deleting <span class="font-medium text-white">{{ deleteCandidate?.name }}</span> is permanent.
+          Deleting <span class="font-medium text-slate-900">{{ deleteCandidate?.name }}</span> is permanent.
           This credential is referenced by {{ deleteUsage.schedules_total }} schedules ({{ deleteUsage.schedules_enabled }} enabled) and {{ deleteUsage.jobs_total }} jobs ({{ deleteUsage.jobs_active }} active).
         </p>
         <BannerNotice

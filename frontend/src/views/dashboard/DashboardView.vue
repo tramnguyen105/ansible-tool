@@ -13,32 +13,32 @@
       <section
         class="rounded-2xl border p-5"
         :class="primaryState.tone === 'critical'
-          ? 'border-rose-500/30 bg-rose-500/10'
+          ? 'border-rose-500/30 bg-rose-50'
           : primaryState.tone === 'active'
-            ? 'border-amber-500/30 bg-amber-500/10'
-            : 'border-emerald-500/30 bg-emerald-500/10'"
+            ? 'border-amber-500/30 bg-amber-50'
+            : 'border-emerald-500/30 bg-emerald-50'"
       >
         <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em]" :class="primaryState.tone === 'critical' ? 'text-rose-200' : primaryState.tone === 'active' ? 'text-amber-200' : 'text-emerald-200'">
           {{ primaryState.eyebrow }}
         </p>
-        <h3 class="mt-2 text-[1.8rem] font-semibold text-white">{{ primaryState.title }}</h3>
-        <p class="mt-2 text-[0.98rem] leading-7 text-slate-200/90">{{ primaryState.description }}</p>
+        <h3 class="mt-2 text-[1.8rem] font-semibold text-slate-900">{{ primaryState.title }}</h3>
+        <p class="mt-2 text-[0.98rem] leading-7 text-slate-800/90">{{ primaryState.description }}</p>
       </section>
 
-      <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
         <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Activity window</p>
         <div class="mt-4 grid gap-4 sm:grid-cols-3">
           <div>
             <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Latest job</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-white">{{ latestJobSummary }}</p>
+            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ latestJobSummary }}</p>
           </div>
           <div>
             <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Next run</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-white">{{ nextRunSummary }}</p>
+            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ nextRunSummary }}</p>
           </div>
           <div>
             <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Enabled schedules</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-white">{{ enabledSchedulesLabel }}</p>
+            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ enabledSchedulesLabel }}</p>
           </div>
         </div>
       </section>
@@ -51,48 +51,48 @@
       <CardStat label="Inventories" :value="stats.inventories" tone="secured" helper="Managed target sets available for jobs." />
     </div>
 
-    <div v-if="isLoading" class="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-6">
-      <div class="h-4 w-36 rounded-full bg-slate-800" />
+    <div v-if="isLoading" class="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+      <div class="h-4 w-36 rounded-full bg-slate-100" />
       <div class="mt-5 grid gap-4 lg:grid-cols-3">
-        <div class="h-24 rounded-2xl bg-slate-800/80" />
-        <div class="h-24 rounded-2xl bg-slate-800/70" />
-        <div class="h-24 rounded-2xl bg-slate-800/60" />
+        <div class="h-24 rounded-2xl bg-slate-200/80" />
+        <div class="h-24 rounded-2xl bg-slate-200/70" />
+        <div class="h-24 rounded-2xl bg-slate-200/60" />
       </div>
-      <p class="mt-5 text-[0.96rem] text-slate-400">Loading dashboard data…</p>
+      <p class="mt-5 text-[0.96rem] text-slate-600">Loading dashboard data…</p>
     </div>
 
     <template v-else>
       <div class="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <section class="rounded-2xl border border-slate-200 bg-white p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
               <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Operational state</p>
-              <h3 class="mt-2 text-xl font-semibold text-white">Readiness summary</h3>
+              <h3 class="mt-2 text-xl font-semibold text-slate-900">Readiness summary</h3>
             </div>
-            <RouterLink class="text-sm text-console-glow transition hover:text-white" to="/jobs">View jobs</RouterLink>
+            <RouterLink class="text-sm text-console-glow transition hover:text-slate-900" to="/jobs">View jobs</RouterLink>
           </div>
 
           <div class="mt-5 grid gap-4 md:grid-cols-3">
-            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Readiness</p>
-              <p class="mt-3 text-[0.97rem] text-slate-300">{{ readinessSummary }}</p>
+              <p class="mt-3 text-[0.97rem] text-slate-700">{{ readinessSummary }}</p>
             </div>
-            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Next schedule</p>
-              <p class="mt-3 text-[0.97rem] text-slate-300">{{ nextScheduleSummary }}</p>
+              <p class="mt-3 text-[0.97rem] text-slate-700">{{ nextScheduleSummary }}</p>
             </div>
-            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Attention</p>
-              <p class="mt-3 text-[0.97rem] text-slate-300">{{ attentionSummary }}</p>
+              <p class="mt-3 text-[0.97rem] text-slate-700">{{ attentionSummary }}</p>
             </div>
           </div>
         </section>
 
-        <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <section class="rounded-2xl border border-slate-200 bg-white p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
               <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Quick actions</p>
-              <h3 class="mt-2 text-xl font-semibold text-white">Common tasks</h3>
+              <h3 class="mt-2 text-xl font-semibold text-slate-900">Common tasks</h3>
             </div>
           </div>
 
@@ -101,12 +101,12 @@
               v-for="action in quickActions"
               :key="action.to"
               :to="action.to"
-              class="block rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4 transition hover:border-slate-700 hover:bg-slate-950"
+              class="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300 hover:bg-slate-50"
             >
               <div class="flex items-center justify-between gap-3">
                 <div>
-                  <p class="font-medium text-white">{{ action.title }}</p>
-                  <p class="mt-1 text-[0.96rem] text-slate-400">{{ action.description }}</p>
+                  <p class="font-medium text-slate-900">{{ action.title }}</p>
+                  <p class="mt-1 text-[0.96rem] text-slate-600">{{ action.description }}</p>
                 </div>
                 <span class="text-[0.95rem] text-slate-500">Open</span>
               </div>
@@ -130,18 +130,18 @@
           </template>
           <template #created_at="{ row }">
             <div>
-              <p class="font-medium text-white">{{ formatDateTime(row.created_at) }}</p>
+              <p class="font-medium text-slate-900">{{ formatDateTime(row.created_at) }}</p>
               <p class="mt-1 text-xs text-slate-500">{{ row.check_mode ? 'Check mode' : 'Live execution' }}</p>
             </div>
           </template>
           <template #target_type="{ row }">
             <div>
-              <p class="font-medium text-white">{{ row.target_type }}</p>
+              <p class="font-medium text-slate-900">{{ row.target_type }}</p>
               <p class="mt-1 text-xs text-slate-500">{{ row.target_value || 'All managed hosts' }}</p>
             </div>
           </template>
           <template #actions="{ row }">
-            <RouterLink class="text-[0.96rem] font-medium text-sky-300 transition hover:text-white" :to="`/jobs/${row.id}`">Details</RouterLink>
+            <RouterLink class="text-[0.96rem] font-medium text-sky-300 transition hover:text-slate-900" :to="`/jobs/${row.id}`">Details</RouterLink>
           </template>
         </DataTable>
 
@@ -159,7 +159,7 @@
           </template>
           <template #next_run_at="{ row }">
             <div>
-              <p class="font-medium text-white">{{ formatDateTime(row.next_run_at) }}</p>
+              <p class="font-medium text-slate-900">{{ formatDateTime(row.next_run_at) }}</p>
               <p class="mt-1 text-xs text-slate-500">{{ row.cron_expression }}</p>
             </div>
           </template>

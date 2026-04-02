@@ -21,6 +21,7 @@ class PlaybookUpdate(BaseModel):
     description: str | None = None
     yaml_content: str | None = None
     change_note: str | None = None
+    expected_updated_at: datetime | None = None
 
 
 class PlaybookRevisionRead(ModelBase):
@@ -37,7 +38,28 @@ class PlaybookRead(ModelBase):
     description: str | None = None
     yaml_content: str
     is_generated: bool
+    updated_at: datetime
     revisions: list[PlaybookRevisionRead] = []
+
+
+class PlaybookSummaryRead(ModelBase):
+    id: UUID
+    name: str
+    description: str | None = None
+    is_generated: bool
+    revision_count: int
+    last_change_note: str | None = None
+    updated_at: datetime
+
+
+class PlaybookUsageRead(BaseModel):
+    jobs_main: int
+    jobs_pre_check: int
+    jobs_post_check: int
+    schedules_main: int
+    schedules_pre_check: int
+    schedules_post_check: int
+    total: int
 
 
 class YamlValidationRequest(BaseModel):

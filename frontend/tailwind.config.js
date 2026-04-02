@@ -4,16 +4,16 @@ export default {
     extend: {
       colors: {
         console: {
-          deep: '#0f1723',
-          panel: '#162334',
-          surface: '#1b2c40',
-          edge: '#29405d',
-          glow: '#4ec1d2',
-          good: '#2da98a',
-          warn: '#ef9a3d',
-          bad: '#d85b5b',
-          ink: '#e7eff7',
-          muted: '#99adc2'
+          deep: '#ffffff',
+          panel: '#f8fafc',
+          surface: '#eef2ff',
+          edge: '#cbd5e1',
+          glow: '#1d4ed8',
+          good: '#047857',
+          warn: '#b45309',
+          bad: '#b91c1c',
+          ink: '#0f172a',
+          muted: '#475569'
         }
       },
       fontFamily: {

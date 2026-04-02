@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -13,12 +14,21 @@ if TYPE_CHECKING:
     from app.models.jobs import Job, JobSchedule
 
 
+class TemplateSourceType(StrEnum):
+    MANUAL = 'manual'
+    CONVERTER = 'converter'
+
+
 class Template(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = 'templates'
 
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_type: Mapped[str] = mapped_column(String(32), default=TemplateSourceType.MANUAL.value, nullable=False, index=True)
+    conversion_job_id: Mapped[UUID | None] = mapped_column(ForeignKey('cli_conversion_jobs.id', ondelete='SET NULL'), nullable=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     created_by_id: Mapped[UUID | None] = mapped_column(ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     updated_by_id: Mapped[UUID | None] = mapped_column(ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
 

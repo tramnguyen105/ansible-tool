@@ -60,11 +60,11 @@
         <div class="grid gap-4 md:grid-cols-2">
           <div class="rounded-2xl border border-console-edge bg-console-deep/60 p-4">
             <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Detected Host Column</p>
-            <p class="mt-2 text-sm text-white">{{ previewData?.metadata?.host_column || 'N/A' }}</p>
+            <p class="mt-2 text-sm text-slate-900">{{ previewData?.metadata?.host_column || 'N/A' }}</p>
           </div>
           <div class="rounded-2xl border border-console-edge bg-console-deep/60 p-4">
             <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Detected Group Column</p>
-            <p class="mt-2 text-sm text-white">{{ previewData?.metadata?.group_column || 'N/A' }}</p>
+            <p class="mt-2 text-sm text-slate-900">{{ previewData?.metadata?.group_column || 'N/A' }}</p>
           </div>
         </div>
 
@@ -86,7 +86,7 @@
               </thead>
               <tbody class="divide-y divide-console-edge/40">
                 <tr v-for="host in previewData.hosts.slice(0, 6)" :key="host.name">
-                  <td class="px-2 py-2 text-white">{{ host.name }}</td>
+                  <td class="px-2 py-2 text-slate-900">{{ host.name }}</td>
                   <td class="px-2 py-2 text-console-muted">{{ host.address || 'N/A' }}</td>
                   <td class="px-2 py-2 text-console-muted">{{ host.groups?.length ? host.groups.join(', ') : 'None' }}</td>
                 </tr>
@@ -107,7 +107,7 @@
               </thead>
               <tbody class="divide-y divide-console-edge/40">
                 <tr v-for="group in previewData.groups.slice(0, 6)" :key="group.name">
-                  <td class="px-2 py-2 text-white">{{ group.name }}</td>
+                  <td class="px-2 py-2 text-slate-900">{{ group.name }}</td>
                   <td class="px-2 py-2 text-console-muted">{{ group.children?.length ? group.children.join(', ') : 'None' }}</td>
                 </tr>
               </tbody>
@@ -115,7 +115,7 @@
           </div>
         </div>
 
-        <div v-if="previewData?.warnings.length" class="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+        <div v-if="previewData?.warnings.length" class="rounded-2xl border border-amber-500/30 bg-amber-50 p-4 text-sm text-amber-700">
           <p v-for="warning in previewData.warnings" :key="warning">{{ warning }}</p>
         </div>
 

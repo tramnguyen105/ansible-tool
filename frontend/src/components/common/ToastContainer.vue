@@ -5,10 +5,10 @@
       :key="toast.id"
       class="pointer-events-auto rounded-xl border px-4 py-3 shadow-lg"
       :class="toast.tone === 'error'
-        ? 'border-rose-500/30 bg-slate-900 text-rose-100'
+        ? 'border-rose-500/30 bg-rose-50 text-rose-700'
         : toast.tone === 'success'
-          ? 'border-emerald-500/30 bg-slate-900 text-emerald-100'
-          : 'border-slate-700 bg-slate-900 text-slate-100'"
+          ? 'border-emerald-500/30 bg-emerald-50 text-emerald-700'
+          : 'border-slate-300 bg-white text-slate-900'"
     >
       <p class="font-medium">{{ toast.title }}</p>
       <p v-if="toast.description" class="mt-1 text-xs leading-5 opacity-90">{{ toast.description }}</p>

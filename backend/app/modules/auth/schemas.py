@@ -38,3 +38,13 @@ class LoginPayload(BaseModel):
 class SessionPayload(BaseModel):
     user: UserRead
     expires_at: datetime
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: SecretStr = Field(min_length=1)
+    new_password: SecretStr = Field(min_length=8, max_length=128)
+
+
+class AuthModesRead(BaseModel):
+    ldap_enabled: bool
+    allow_local_auth: bool

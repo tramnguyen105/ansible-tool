@@ -12,8 +12,11 @@ class TemplateRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def list(self) -> list[Template]:
-        return list(self.session.scalars(select(Template).order_by(Template.name)).all())
+    def list(self, *, source_type: str | None = None) -> list[Template]:
+        query = select(Template).order_by(Template.updated_at.desc(), Template.name)
+        if source_type is not None:
+            query = query.where(Template.source_type == source_type)
+        return list(self.session.scalars(query).all())
 
     def get(self, template_id: UUID) -> Template | None:
         return self.session.get(Template, template_id)

@@ -32,8 +32,6 @@ def get_auth_context(
 ) -> AuthContext:
     service = AuthService(db)
     auth_session = service.get_session(session_token)
-    service.touch_session(auth_session)
-    db.commit()
     return AuthContext(user=auth_session.user, session=auth_session)
 
 

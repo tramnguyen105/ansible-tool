@@ -13,32 +13,32 @@
       <section
         class="rounded-2xl border p-5"
         :class="primaryState.tone === 'critical'
-          ? 'border-rose-500/30 bg-rose-500/10'
+          ? 'border-rose-500/30 bg-rose-50'
           : primaryState.tone === 'active'
-            ? 'border-amber-500/30 bg-amber-500/10'
-            : 'border-emerald-500/30 bg-emerald-500/10'"
+            ? 'border-amber-500/30 bg-amber-50'
+            : 'border-emerald-500/30 bg-emerald-50'"
       >
         <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em]" :class="primaryState.tone === 'critical' ? 'text-rose-200' : primaryState.tone === 'active' ? 'text-amber-200' : 'text-emerald-200'">
           {{ primaryState.eyebrow }}
         </p>
-        <h3 class="mt-2 text-[1.8rem] font-semibold text-white">{{ primaryState.title }}</h3>
-        <p class="mt-2 text-[0.98rem] leading-7 text-slate-200/90">{{ primaryState.description }}</p>
+        <h3 class="mt-2 text-[1.8rem] font-semibold text-slate-900">{{ primaryState.title }}</h3>
+        <p class="mt-2 text-[0.98rem] leading-7 text-slate-800/90">{{ primaryState.description }}</p>
       </section>
 
-      <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5">
         <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Activity window</p>
         <div class="mt-4 grid gap-4 sm:grid-cols-3">
           <div>
             <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Latest job</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-white">{{ latestJobSummary }}</p>
+            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ latestJobSummary }}</p>
           </div>
           <div>
             <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Latest failure</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-white">{{ latestFailureSummary }}</p>
+            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ latestFailureSummary }}</p>
           </div>
           <div>
             <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Live jobs</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-white">{{ liveRunSummary }}</p>
+            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ liveRunSummary }}</p>
           </div>
         </div>
       </section>
@@ -51,12 +51,12 @@
       <CardStat label="Check mode" :value="summary.checkMode" tone="secured" helper="Validation runs recorded in the current list." />
     </div>
 
-    <section class="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Filters</p>
-          <h3 class="mt-2 text-[1.15rem] font-semibold text-white">Execution history</h3>
-          <p class="mt-2 text-[0.96rem] text-slate-400">Filter by status, mode, or name to isolate the jobs that matter now.</p>
+          <h3 class="mt-2 text-[1.15rem] font-semibold text-slate-900">Execution history</h3>
+          <p class="mt-2 text-[0.96rem] text-slate-600">Filter by status, mode, or name to isolate the jobs that matter now.</p>
         </div>
         <div class="grid gap-3 sm:grid-cols-2 lg:min-w-[460px] xl:grid-cols-3">
           <input v-model="search" placeholder="Search by job name" :disabled="isLoading" />
@@ -87,7 +87,7 @@
       >
         <template #name="{ row }">
           <div>
-            <p class="font-medium text-white">{{ row.name }}</p>
+            <p class="font-medium text-slate-900">{{ row.name }}</p>
             <p class="mt-1 text-xs text-slate-500">{{ row.target_value || 'All managed hosts' }}</p>
           </div>
         </template>
@@ -96,18 +96,18 @@
         </template>
         <template #target_type="{ row }">
           <div>
-            <p class="font-medium text-white">{{ row.target_type }}</p>
+            <p class="font-medium text-slate-900">{{ row.target_type }}</p>
             <p class="mt-1 text-xs text-slate-500">{{ row.modeLabel }}</p>
           </div>
         </template>
         <template #created_at="{ row }">
           <div>
-            <p class="font-medium text-white">{{ formatDateTime(row.created_at) }}</p>
+            <p class="font-medium text-slate-900">{{ formatDateTime(row.created_at) }}</p>
             <p class="mt-1 text-xs text-slate-500">{{ row.relativeCreated }}</p>
           </div>
         </template>
         <template #actions="{ row }">
-          <RouterLink class="text-[0.96rem] font-medium text-sky-300 transition hover:text-white" :to="`/jobs/${row.id}`">Details</RouterLink>
+          <RouterLink class="text-[0.96rem] font-medium text-sky-300 transition hover:text-slate-900" :to="`/jobs/${row.id}`">Details</RouterLink>
         </template>
       </DataTable>
     </div>

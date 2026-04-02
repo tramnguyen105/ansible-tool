@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-size: 16.5px;
 }
 
@@ -12,7 +12,8 @@ body {
   font-family: 'Segoe UI', 'IBM Plex Sans', sans-serif;
   font-size: 0.98rem;
   line-height: 1.55;
-  background: #0f172a;
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 button,
@@ -27,10 +28,15 @@ textarea,
 select {
   width: 100%;
   border-radius: 16px;
-  border: 1px solid rgba(51, 65, 85, 0.95);
-  background: rgba(15, 23, 35, 0.92);
-  color: #e7eff7;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
   padding: 0.9rem 1rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
 }
 
 textarea {
@@ -43,14 +49,16 @@ button {
 
 .btn-primary {
   border-radius: 9999px;
-  background: linear-gradient(135deg, #2b8ea1 0%, #3569a9 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   padding: 0.8rem 1.2rem;
   color: white;
 }
 
 .btn-secondary {
   border-radius: 9999px;
-  border: 1px solid rgba(51, 65, 85, 0.95);
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
   padding: 0.8rem 1.2rem;
 }
 
@@ -60,12 +68,12 @@ button {
   font-size: 0.84rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #a6b8cb;
+  color: #475569;
 }
 
 .pretty-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(125, 146, 171, 0.72) rgba(15, 23, 42, 0.45);
+  scrollbar-color: rgba(148, 163, 184, 0.9) rgba(241, 245, 249, 0.95);
 }
 
 .pretty-scrollbar::-webkit-scrollbar {
@@ -74,16 +82,16 @@ button {
 }
 
 .pretty-scrollbar::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(241, 245, 249, 0.95);
   border-radius: 999px;
 }
 
 .pretty-scrollbar::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  border: 2px solid rgba(15, 23, 42, 0.45);
-  background: linear-gradient(180deg, rgba(134, 156, 181, 0.88) 0%, rgba(95, 116, 143, 0.92) 100%);
+  border: 2px solid rgba(241, 245, 249, 0.95);
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.95) 0%, rgba(100, 116, 139, 0.95) 100%);
 }
 
 .pretty-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(153, 176, 202, 0.96) 0%, rgba(108, 130, 160, 0.96) 100%);
+  background: linear-gradient(180deg, rgba(100, 116, 139, 0.95) 0%, rgba(71, 85, 105, 0.95) 100%);
 }

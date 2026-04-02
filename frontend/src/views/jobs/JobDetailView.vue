@@ -1,14 +1,14 @@
 <template>
   <div>
-    <div v-if="isLoading" class="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-      <div class="h-4 w-40 rounded-full bg-slate-800" />
+    <div v-if="isLoading" class="rounded-2xl border border-slate-200 bg-white p-6">
+      <div class="h-4 w-40 rounded-full bg-slate-100" />
       <div class="mt-5 grid gap-4 xl:grid-cols-4">
-        <div class="h-24 rounded-2xl bg-slate-800/80" />
-        <div class="h-24 rounded-2xl bg-slate-800/70" />
-        <div class="h-24 rounded-2xl bg-slate-800/60" />
-        <div class="h-24 rounded-2xl bg-slate-800/50" />
+        <div class="h-24 rounded-2xl bg-slate-200/80" />
+        <div class="h-24 rounded-2xl bg-slate-200/70" />
+        <div class="h-24 rounded-2xl bg-slate-200/60" />
+        <div class="h-24 rounded-2xl bg-slate-200/50" />
       </div>
-      <p class="mt-5 text-sm text-slate-400">Loading job metadata and runner output…</p>
+      <p class="mt-5 text-sm text-slate-600">Loading job metadata and runner output…</p>
     </div>
 
     <div v-else-if="job">
@@ -24,35 +24,35 @@
         <section
           class="rounded-2xl border p-5"
           :class="statusTone === 'critical'
-            ? 'border-rose-500/30 bg-rose-500/10'
+            ? 'border-rose-500/30 bg-rose-50'
             : statusTone === 'active'
-              ? 'border-amber-500/30 bg-amber-500/10'
-              : 'border-emerald-500/30 bg-emerald-500/10'"
+              ? 'border-amber-500/30 bg-amber-50'
+              : 'border-emerald-500/30 bg-emerald-50'"
         >
           <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em]" :class="statusTone === 'critical' ? 'text-rose-200' : statusTone === 'active' ? 'text-amber-200' : 'text-emerald-200'">
             {{ statusEyebrow }}
           </p>
           <div class="mt-2 flex items-center gap-3">
-            <h3 class="text-[1.8rem] font-semibold text-white">{{ statusTitle }}</h3>
+            <h3 class="text-[1.8rem] font-semibold text-slate-900">{{ statusTitle }}</h3>
             <StatusBadge :value="job.status" />
           </div>
-          <p class="mt-2 text-[0.98rem] leading-7 text-slate-200/90">{{ statusDescription }}</p>
+          <p class="mt-2 text-[0.98rem] leading-7 text-slate-800/90">{{ statusDescription }}</p>
         </section>
 
-        <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <section class="rounded-2xl border border-slate-200 bg-white p-5">
           <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Execution window</p>
           <div class="mt-4 grid gap-4 sm:grid-cols-3">
             <div>
               <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Submitted</p>
-              <p class="mt-2 text-[0.98rem] font-medium text-white">{{ formatDateTime(job.created_at) }}</p>
+              <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ formatDateTime(job.created_at) }}</p>
             </div>
             <div>
               <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Started</p>
-              <p class="mt-2 text-[0.98rem] font-medium text-white">{{ formatDateTime(job.started_at) }}</p>
+              <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ formatDateTime(job.started_at) }}</p>
             </div>
             <div>
               <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Finished</p>
-              <p class="mt-2 text-[0.98rem] font-medium text-white">{{ formatDateTime(job.finished_at) }}</p>
+              <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ formatDateTime(job.finished_at) }}</p>
             </div>
           </div>
         </section>
@@ -66,53 +66,53 @@
       </div>
 
       <div class="mt-6 grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
-        <section class="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <section class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
           <div>
             <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Run context</p>
-            <h3 class="mt-2 text-[1.15rem] font-semibold text-white">Execution metadata</h3>
+            <h3 class="mt-2 text-[1.15rem] font-semibold text-slate-900">Execution metadata</h3>
           </div>
 
-          <div class="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-[0.97rem]">
+          <div class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-[0.97rem]">
             <div class="flex items-start justify-between gap-4">
-              <span class="text-slate-400">Target type</span>
-              <span class="text-right text-white">{{ job.target_type }}</span>
+              <span class="text-slate-600">Target type</span>
+              <span class="text-right text-slate-900">{{ job.target_type }}</span>
             </div>
             <div class="flex items-start justify-between gap-4">
-              <span class="text-slate-400">Target value</span>
-              <span class="text-right text-white">{{ job.target_value || 'All managed hosts' }}</span>
+              <span class="text-slate-600">Target value</span>
+              <span class="text-right text-slate-900">{{ job.target_value || 'All managed hosts' }}</span>
             </div>
             <div class="flex items-start justify-between gap-4">
-              <span class="text-slate-400">Celery task</span>
-              <span class="max-w-[220px] break-all text-right text-white">{{ job.celery_task_id || 'Not queued' }}</span>
+              <span class="text-slate-600">Celery task</span>
+              <span class="max-w-[220px] break-all text-right text-slate-900">{{ job.celery_task_id || 'Not queued' }}</span>
             </div>
           </div>
 
-          <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-[0.97rem]">
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-[0.97rem]">
             <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Result summary</p>
-            <pre class="mt-3 max-h-[220px] overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950 p-3 text-xs text-slate-300">{{ summaryText }}</pre>
+            <pre class="mt-3 max-h-[220px] overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-3 text-xs text-slate-700">{{ summaryText }}</pre>
           </div>
         </section>
 
         <div class="space-y-6">
-          <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+          <section class="rounded-2xl border border-slate-200 bg-white p-5">
             <div class="flex items-center justify-between gap-3">
-              <h3 class="text-[1.15rem] font-semibold text-white">Execution output</h3>
+              <h3 class="text-[1.15rem] font-semibold text-slate-900">Execution output</h3>
               <StatusBadge :value="job.status" />
             </div>
-            <pre class="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-slate-200">{{ job.result?.stdout || 'No stdout captured yet.' }}</pre>
+            <pre class="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-slate-50 p-4 text-xs text-slate-800">{{ job.result?.stdout || 'No stdout captured yet.' }}</pre>
           </section>
 
-          <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <h3 class="text-[1.15rem] font-semibold text-white">Error output</h3>
-            <pre class="mt-4 max-h-[260px] overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-rose-100">{{ job.result?.stderr || 'No stderr captured.' }}</pre>
+          <section class="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 class="text-[1.15rem] font-semibold text-slate-900">Error output</h3>
+            <pre class="mt-4 max-h-[260px] overflow-auto rounded-2xl bg-slate-50 p-4 text-xs text-rose-700">{{ job.result?.stderr || 'No stderr captured.' }}</pre>
           </section>
         </div>
       </div>
     </div>
 
-    <div v-else class="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+    <div v-else class="rounded-2xl border border-slate-200 bg-white p-6">
       <PageHeader title="Job detail" eyebrow="Execution review" description="The requested job could not be loaded." />
-      <p class="mt-4 text-[0.97rem] text-slate-400">Verify the job still exists and that the current session has permission to review it.</p>
+      <p class="mt-4 text-[0.97rem] text-slate-600">Verify the job still exists and that the current session has permission to review it.</p>
     </div>
   </div>
 </template>

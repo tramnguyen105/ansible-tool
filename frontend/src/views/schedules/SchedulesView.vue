@@ -16,12 +16,12 @@
       <CardStat label="Next due" :value="nextDueLabel" tone="timed" helper="The earliest enabled schedule due to run from the current list." />
     </div>
 
-    <section class="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Filters</p>
-          <h3 class="mt-2 text-[1.15rem] font-semibold text-white">Schedule library</h3>
-          <p class="mt-2 text-[0.96rem] text-slate-400">Filter by name, state, or execution mode to isolate schedules quickly.</p>
+          <h3 class="mt-2 text-[1.15rem] font-semibold text-slate-900">Schedule library</h3>
+          <p class="mt-2 text-[0.96rem] text-slate-600">Filter by name, state, or execution mode to isolate schedules quickly.</p>
         </div>
         <div class="grid gap-3 sm:grid-cols-2 lg:min-w-[460px] xl:grid-cols-3">
           <input v-model="search" :disabled="isLoading" placeholder="Search by schedule name" />
@@ -55,13 +55,13 @@
       >
         <template #name="{ row }">
           <div>
-            <p class="font-medium text-white">{{ row.name }}</p>
+            <p class="font-medium text-slate-900">{{ row.name }}</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.description || 'No description provided' }}</p>
           </div>
         </template>
         <template #cron_expression="{ row }">
           <div>
-            <p class="text-white">{{ row.cron_expression }}</p>
+            <p class="text-slate-900">{{ row.cron_expression }}</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.check_mode ? 'Check mode schedule' : 'Live execution schedule' }}</p>
           </div>
         </template>
@@ -70,13 +70,13 @@
         </template>
         <template #next_run_at="{ row }">
           <div>
-            <p class="text-white">{{ formatDateTime(row.next_run_at) }}</p>
+            <p class="text-slate-900">{{ formatDateTime(row.next_run_at) }}</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.timezone }}</p>
           </div>
         </template>
         <template #actions="{ row }">
           <div class="flex justify-end gap-3 text-sm">
-            <button class="text-console-glow transition hover:text-white" :disabled="isSaving" @click="openEdit(row)">Edit</button>
+            <button class="text-console-glow transition hover:text-slate-900" :disabled="isSaving" @click="openEdit(row)">Edit</button>
             <button class="text-rose-300 transition hover:text-rose-200 disabled:opacity-50" :disabled="isSaving" @click="removeSchedule(row)">Delete</button>
           </div>
         </template>

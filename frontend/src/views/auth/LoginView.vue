@@ -1,18 +1,18 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10">
-    <div class="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/95 p-8 shadow-2xl shadow-slate-950/40">
-      <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-400">Ansible Automation Console</p>
-      <h1 class="mt-3 text-3xl font-semibold text-white">Sign in</h1>
-      <p class="mt-3 text-sm leading-6 text-slate-300">
+  <div class="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
+    <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-300/35">
+      <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-600">Ansible Automation Console</p>
+      <h1 class="mt-3 text-3xl font-semibold text-slate-900">Sign in</h1>
+      <p class="mt-3 text-sm leading-6 text-slate-700">
         {{ authDescription }}
       </p>
 
-      <div v-if="authModesLabel" class="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-300">
-        <span class="font-medium text-slate-100">Available sign-in methods:</span>
+      <div v-if="authModesLabel" class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        <span class="font-medium text-slate-900">Available sign-in methods:</span>
         {{ authModesLabel }}
       </div>
 
-      <div v-if="formError" class="mt-4 rounded-2xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+      <div v-if="formError" class="mt-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
         {{ formError }}
       </div>
 
@@ -32,7 +32,7 @@
           <div class="mb-2 flex items-center justify-between">
             <label class="field-label mb-0" for="login-password">Password</label>
             <button
-              class="text-sm text-slate-400 transition hover:text-slate-200"
+              class="text-sm text-slate-600 transition hover:text-slate-800"
               type="button"
               :disabled="isSubmitting"
               @click="showPassword = !showPassword"
@@ -107,7 +107,7 @@ const authDescription = computed(() => {
 
 onMounted(async () => {
   try {
-    const response = await api.get('/system/settings')
+    const response = await api.get('/auth/modes')
     runtimeSettings.value = {
       ldap_enabled: !!response.data.data?.ldap_enabled,
       allow_local_auth: !!response.data.data?.allow_local_auth,

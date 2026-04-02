@@ -14,6 +14,7 @@ import PlaybooksView from '../views/playbooks/PlaybooksView.vue'
 import SchedulesView from '../views/schedules/SchedulesView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import TemplatesView from '../views/templates/TemplatesView.vue'
+import UsersView from '../views/users/UsersView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -32,8 +33,9 @@ const router = createRouter({
         { path: 'jobs', component: JobsView },
         { path: 'jobs/:id', component: JobDetailView },
         { path: 'schedules', component: SchedulesView },
-        { path: 'audit', component: AuditLogsView },
-        { path: 'settings', component: SettingsView },
+        { path: 'audit', component: AuditLogsView, meta: { admin: true } },
+        { path: 'users', component: UsersView, meta: { admin: true } },
+        { path: 'settings', component: SettingsView, meta: { admin: true } },
       ],
     },
   ],
@@ -46,6 +48,9 @@ router.beforeEach(async (to) => {
     return '/login'
   }
   if (to.path === '/login' && auth.isAuthenticated) {
+    return '/'
+  }
+  if (to.meta.admin && !auth.isAdmin) {
     return '/'
   }
   return true
