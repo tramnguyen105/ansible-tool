@@ -18,7 +18,7 @@
             ? 'border-amber-500/30 bg-amber-50'
             : 'border-emerald-500/30 bg-emerald-50'"
       >
-        <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em]" :class="primaryState.tone === 'critical' ? 'text-rose-200' : primaryState.tone === 'active' ? 'text-amber-200' : 'text-emerald-200'">
+        <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em]" :class="primaryState.tone === 'critical' ? 'text-rose-500' : primaryState.tone === 'active' ? 'text-amber-600' : 'text-emerald-600'">
           {{ primaryState.eyebrow }}
         </p>
         <h3 class="mt-2 text-[1.8rem] font-semibold text-slate-900">{{ primaryState.title }}</h3>
@@ -26,7 +26,7 @@
       </section>
 
       <section class="rounded-2xl border border-slate-200 bg-white p-5">
-        <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Activity window</p>
+        <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Result set</p>
         <div class="mt-4 grid gap-4 sm:grid-cols-3">
           <div>
             <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Latest job</p>
@@ -37,18 +37,18 @@
             <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ latestFailureSummary }}</p>
           </div>
           <div>
-            <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Live jobs</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ liveRunSummary }}</p>
+            <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Visible jobs</p>
+            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ totalJobs }}</p>
           </div>
         </div>
       </section>
     </div>
 
     <div class="mt-6 grid gap-4 xl:grid-cols-4">
-      <CardStat label="Failed jobs" :value="summary.failed" tone="tracked" helper="Recent failures requiring review." />
-      <CardStat label="Running jobs" :value="summary.running" tone="managed" helper="Jobs currently queued or in progress." />
-      <CardStat label="Queued jobs" :value="summary.queued" tone="validated" helper="Waiting for worker capacity or dispatch." />
-      <CardStat label="Check mode" :value="summary.checkMode" tone="secured" helper="Validation runs recorded in the current list." />
+      <CardStat label="Failed jobs" :value="summary.failed" tone="tracked" helper="Matching failed jobs requiring review." />
+      <CardStat label="Running jobs" :value="summary.running" tone="managed" helper="Matching jobs currently in progress." />
+      <CardStat label="Queued jobs" :value="summary.queued" tone="validated" helper="Matching jobs waiting for worker capacity." />
+      <CardStat label="Check mode" :value="summary.checkMode" tone="secured" helper="Validation runs in the current result set." />
     </div>
 
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
@@ -81,9 +81,19 @@
         title="Job history"
         description="Recent execution records with target scope, mode, and status."
         :columns="columns"
-        :rows="filteredRows"
+        :rows="rows"
+        :loading="isLoading"
+        :error="Boolean(queryError)"
+        :sort-by="sortBy"
+        :sort-order="sortOrder as 'asc' | 'desc'"
+        loading-title="Loading jobs"
+        loading-description="Fetching execution history from the API."
+        error-title="Job history is unavailable"
+        error-description="The job query failed. Retry the request or adjust the active filters."
         empty-title="No jobs match your current filters"
         empty-description="Launch a job manually or broaden the filters to review older activity."
+        @retry="load"
+        @sort="handleSort"
       >
         <template #name="{ row }">
           <div>
@@ -107,67 +117,120 @@
           </div>
         </template>
         <template #actions="{ row }">
-          <RouterLink class="text-[0.96rem] font-medium text-sky-300 transition hover:text-slate-900" :to="`/jobs/${row.id}`">Details</RouterLink>
+          <RouterLink class="text-[0.96rem] font-medium text-sky-600 transition hover:text-slate-900" :to="`/jobs/${row.id}`">Details</RouterLink>
+        </template>
+        <template #footer>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-slate-600">
+              Showing {{ rows.length ? offset + 1 : 0 }}-{{ offset + rows.length }} of {{ totalJobs }} jobs
+            </p>
+            <div class="flex items-center gap-2">
+              <button class="btn-secondary" :disabled="isLoading || page <= 1" @click="goToPreviousPage">Previous</button>
+              <span class="text-sm text-slate-500">Page {{ page }}</span>
+              <button class="btn-secondary" :disabled="isLoading || !hasMore" @click="goToNextPage">Next</button>
+            </div>
+          </div>
         </template>
       </DataTable>
     </div>
 
-    <JobRunWizard :open="showWizard" @close="showWizard = false" @saved="load" />
+    <JobRunWizard :open="showWizard" @close="showWizard = false" @saved="refreshFromStart" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
-import api from '../../api/client'
+import { jobsApi, type JobListItem, type JobListSummary } from '../../api/jobs'
 import CardStat from '../../components/common/CardStat.vue'
 import DataTable from '../../components/common/DataTable.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 import JobRunWizard from '../../components/wizards/JobRunWizard.vue'
+import { useListQueryState } from '../../composables/useListQueryState'
+import { usePagedCollection } from '../../composables/usePagedCollection'
 import { useAppStore } from '../../stores/app'
 import { formatDateTime, formatRelativeTime } from '../../utils/format'
 
 const app = useAppStore()
-const rows = ref<any[]>([])
 const showWizard = ref(false)
-const search = ref('')
-const statusFilter = ref('all')
-const modeFilter = ref('all')
-const isLoading = ref(true)
+const queryError = ref<unknown>(null)
+
+const {
+  search,
+  sortBy,
+  sortOrder,
+  page,
+  offset: routeOffset,
+  filters,
+  setSort,
+  setPage,
+} = useListQueryState({
+  pageSize: 10,
+  search: { key: 'search', defaultValue: '' },
+  filters: [
+    { key: 'status', defaultValue: 'all' },
+    { key: 'mode', defaultValue: 'all' },
+  ],
+  sortBy: { key: 'sortBy', defaultValue: 'created_at' },
+  sortOrder: { key: 'sortOrder', defaultValue: 'desc' },
+})
+
+const statusFilter = filters.status
+const modeFilter = filters.mode
 
 const columns = [
-  { key: 'name', label: 'Job' },
-  { key: 'status', label: 'Status' },
-  { key: 'target_type', label: 'Target scope' },
-  { key: 'created_at', label: 'Submitted' },
+  { key: 'name', label: 'Job', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'target_type', label: 'Target scope', sortable: true },
+  { key: 'created_at', label: 'Submitted', sortable: true },
 ]
 
-const summary = computed(() => ({
-  queued: rows.value.filter((row) => ['queued', 'pending'].includes(row.status)).length,
-  running: rows.value.filter((row) => row.status === 'running').length,
-  success: rows.value.filter((row) => ['success', 'completed'].includes(row.status)).length,
-  failed: rows.value.filter((row) => ['failed', 'error'].includes(row.status)).length,
-  checkMode: rows.value.filter((row) => row.check_mode).length,
-}))
+type JobRow = JobListItem & { modeLabel: string; relativeCreated: string }
+type JobsMeta = { summary: JobListSummary }
 
-const filteredRows = computed(() => {
-  return rows.value.filter((row) => {
-    const matchesSearch = row.name.toLowerCase().includes(search.value.toLowerCase())
-    const matchesStatus =
-      statusFilter.value === 'all' ||
-      (statusFilter.value === 'success' && ['success', 'completed'].includes(row.status)) ||
-      (statusFilter.value === 'failed' && ['failed', 'error'].includes(row.status)) ||
-      (statusFilter.value === 'queued' && ['queued', 'pending'].includes(row.status)) ||
-      row.status === statusFilter.value
-    const matchesMode =
-      modeFilter.value === 'all' ||
-      (modeFilter.value === 'check' && row.check_mode) ||
-      (modeFilter.value === 'live' && !row.check_mode)
+const {
+  items: rows,
+  isLoading,
+  total: totalJobs,
+  hasMore,
+  offset,
+  meta,
+  load: baseLoad,
+  refreshFromStart,
+} = usePagedCollection<JobRow, JobsMeta>({
+  pageSize: 10,
+  watchSources: [search, statusFilter, modeFilter, sortBy, sortOrder],
+  onError: (error) => {
+    queryError.value = error
+    app.pushToast('Job history could not be loaded', 'error', 'Check the API connection and retry the request.')
+  },
+  query: async ({ limit, offset }) => {
+    const params: Record<string, string | number | string[]> = {
+      limit,
+      offset,
+      sort_by: sortBy.value,
+      sort_order: sortOrder.value,
+    }
+    if (search.value.trim()) params.search = search.value.trim()
+    if (statusFilter.value !== 'all') params.statuses = [statusFilter.value]
+    if (modeFilter.value !== 'all') params.mode = modeFilter.value
 
-    return matchesSearch && matchesStatus && matchesMode
-  })
+    const response = await jobsApi.query(params)
+    return {
+      ...response.data.data,
+      items: response.data.data.items.map(normalizeRow),
+    }
+  },
 })
+
+const summary = computed(() => ({
+  queued: meta.value.summary?.queued || 0,
+  running: meta.value.summary?.running || 0,
+  success: meta.value.summary?.success || 0,
+  failed: meta.value.summary?.failed || 0,
+  checkMode: meta.value.summary?.check_mode || 0,
+}))
 
 const latestJob = computed(() => rows.value[0] || null)
 const latestFailure = computed(() => rows.value.find((row) => ['failed', 'error'].includes(row.status)) || null)
@@ -180,12 +243,6 @@ const latestJobSummary = computed(() => {
 const latestFailureSummary = computed(() => {
   if (!latestFailure.value) return 'No recent failures.'
   return `${latestFailure.value.name} · ${latestFailure.value.relativeCreated}`
-})
-
-const liveRunSummary = computed(() => {
-  const live = rows.value.filter((row) => !row.check_mode)
-  if (!live.length) return 'No live runs recorded.'
-  return `${live.length} live run${live.length === 1 ? '' : 's'} in history`
 })
 
 const primaryState = computed(() => {
@@ -222,16 +279,29 @@ function normalizeRow(row: any) {
 }
 
 async function load() {
-  isLoading.value = true
-  try {
-    const response = await api.get('/jobs')
-    rows.value = response.data.data.map(normalizeRow)
-  } catch {
-    app.pushToast('Job history could not be loaded', 'error', 'Check the API connection and retry the request.')
-  } finally {
-    isLoading.value = false
-  }
+  queryError.value = null
+  await baseLoad().catch(() => undefined)
 }
+
+function handleSort(key: string) {
+  setSort(key)
+}
+
+function goToNextPage() {
+  if (!hasMore.value) return
+  setPage(page.value + 1)
+  return load()
+}
+
+function goToPreviousPage() {
+  if (page.value <= 1) return
+  setPage(page.value - 1)
+  return load()
+}
+
+watch(routeOffset, (nextOffset) => {
+  offset.value = nextOffset
+}, { immediate: true })
 
 onMounted(load)
 </script>

@@ -1,4 +1,7 @@
 import api from './client'
+export { jobsApi } from './jobs'
+export { inventoryApi } from './inventory'
+export { schedulesApi } from './schedules'
 
 export const authApi = {
   login: (payload: { username: string; password: string }) => api.post('/auth/login', payload),

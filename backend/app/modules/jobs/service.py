@@ -11,7 +11,7 @@ from app.models.inventory import Inventory
 from app.models.jobs import Job, JobStatus
 from app.modules.audit.service import AuditService
 from app.modules.jobs.repository import JobRepository
-from app.modules.jobs.schemas import JobCreate, JobRead, JobResultRead
+from app.modules.jobs.schemas import JobCreate, JobListRead, JobListSummaryRead, JobRead, JobResultRead
 
 
 class JobService:
@@ -23,6 +23,37 @@ class JobService:
     def list(self) -> list[JobRead]:
         return [self._serialize(item) for item in self.repository.list()]
 
+    def list_filtered(
+        self,
+        *,
+        search: str | None = None,
+        statuses: list[str] | None = None,
+        mode: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        sort_by: str = 'created_at',
+        sort_order: str = 'desc',
+    ) -> JobListRead:
+        self._validate_statuses(statuses)
+        items, total, summary = self.repository.list_filtered(
+            search=search,
+            statuses=statuses,
+            mode=mode,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        serialized = [self._serialize(item) for item in items]
+        return JobListRead(
+            items=serialized,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=offset + len(serialized) < total,
+            summary=JobListSummaryRead(**summary),
+        )
+
     def get(self, job_id: UUID) -> JobRead:
         job = self.repository.get(job_id)
         if job is None:
@@ -30,6 +61,7 @@ class JobService:
         return self._serialize(job)
 
     def create(self, payload: JobCreate, *, user_id: UUID | None = None) -> JobRead:
+        self._validate_targeting(payload.target_type, payload.target_value)
         self._validate_references(payload.inventory_id, payload.credential_id, payload.playbook_id, payload.pre_check_playbook_id, payload.post_check_playbook_id)
         job = Job(
             name=payload.name,
@@ -54,7 +86,15 @@ class JobService:
             resource_id=str(job.id),
             message=f'Job {job.name} created',
             user_id=user_id,
-            details={'execute_now': payload.execute_now},
+            details={
+                'execute_now': payload.execute_now,
+                'inventory_id': str(job.inventory_id),
+                'credential_id': str(job.credential_id),
+                'playbook_id': str(job.playbook_id),
+                'target_type': job.target_type,
+                'target_value': job.target_value,
+                'check_mode': job.check_mode,
+            },
         )
         self.session.commit()
         if payload.execute_now:
@@ -79,6 +119,12 @@ class JobService:
             resource_id=str(job.id),
             message=f'Job {job.name} queued for execution',
             user_id=user_id,
+            details={
+                'status': job.status.value,
+                'celery_task_id': job.celery_task_id,
+                'target_type': job.target_type,
+                'target_value': job.target_value,
+            },
         )
         self.session.commit()
         return self.get(job.id)
@@ -119,6 +165,28 @@ class JobService:
         self.repository.add(job)
         self.session.commit()
         return self.enqueue(job.id, user_id=user_id or schedule.created_by_id)
+
+    def _validate_statuses(self, statuses: list[str] | None) -> None:
+        if not statuses:
+            return
+        allowed = {status.value for status in JobStatus}
+        invalid = sorted({item for item in statuses if item not in allowed})
+        if invalid:
+            raise AppError(
+                400,
+                'JOB_STATUS_INVALID',
+                'One or more job status filters are invalid',
+                {'invalid_values': invalid, 'allowed_values': sorted(allowed)},
+            )
+
+    def _validate_targeting(self, target_type: str | None, target_value: str | None) -> None:
+        allowed = {'all', 'hosts', 'groups'}
+        normalized_type = (target_type or 'all').strip().lower()
+        if normalized_type not in allowed:
+            raise AppError(400, 'TARGET_TYPE_INVALID', 'Target type must be all, hosts, or groups')
+        normalized_value = (target_value or '').strip()
+        if normalized_type != 'all' and not normalized_value:
+            raise AppError(400, 'TARGET_VALUE_REQUIRED', 'Target value is required when target type is hosts or groups')
 
     def _validate_references(
         self,

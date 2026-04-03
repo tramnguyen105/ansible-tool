@@ -12,6 +12,7 @@ from app.modules.inventory.schemas import (
     InventoryImportCommit,
     InventoryImportPreviewRead,
     InventoryRead,
+    InventorySummaryListRead,
     InventorySummaryRead,
     InventoryUpdate,
     InventoryUsageRead,
@@ -33,6 +34,32 @@ def list_inventories(_: AuthContext = Depends(require_admin), db: Session = Depe
 def list_inventory_summary(_: AuthContext = Depends(require_admin), db: Session = Depends(get_db)) -> ApiResponse[list[InventorySummaryRead]]:
     service = InventoryService(db)
     return ApiResponse(data=service.list_summary())
+
+
+@router.get('/summary/query', response_model=ApiResponse[InventorySummaryListRead])
+def query_inventory_summary(
+    search: str | None = Query(default=None),
+    source_types: list[str] | None = Query(default=None),
+    readiness: list[str] | None = Query(default=None),
+    limit: int = Query(default=25, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    sort_by: str = Query(default='name', pattern='^(name|source_type|created_at|updated_at)$'),
+    sort_order: str = Query(default='asc', pattern='^(asc|desc)$'),
+    _: AuthContext = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[InventorySummaryListRead]:
+    service = InventoryService(db)
+    return ApiResponse(
+        data=service.list_summary_filtered(
+            search=search,
+            source_types=source_types,
+            readiness=readiness,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+    )
 
 
 @router.get('/{inventory_id}', response_model=ApiResponse[InventoryRead])

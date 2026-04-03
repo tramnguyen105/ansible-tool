@@ -1,19 +1,20 @@
 <template>
-  <header class="border-b border-console-edge/60 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+  <header class="border-b border-console-edge/70 bg-console-panel/90 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="text-[1.2rem] font-semibold text-slate-900">{{ pageTitle }}</p>
-        <p class="mt-0.5 text-[0.96rem] text-slate-600">{{ pageSubtitle }}</p>
+        <p class="text-[0.76rem] font-semibold uppercase tracking-[0.22em] text-console-glow">Workspace</p>
+        <p class="mt-1 text-[1.2rem] font-semibold text-slate-900">{{ pageTitle }}</p>
+        <p class="mt-0.5 text-[0.96rem] text-console-muted">{{ pageSubtitle }}</p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 md:justify-end">
-        <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-slate-700">
+        <span class="rounded-full border border-console-edge/80 bg-white/70 px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-slate-700">
           {{ environmentLabel }}
         </span>
-        <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[0.96rem] text-slate-700">
+        <span class="rounded-full border border-console-edge/80 bg-white/70 px-3 py-1.5 text-[0.96rem] text-slate-700">
           {{ auth.user?.display_name || auth.user?.username }}
         </span>
-        <button class="rounded-full border border-slate-200 px-4 py-1.5 text-[0.96rem] text-slate-800 transition hover:bg-white" @click="logout">
+        <button class="rounded-full border border-console-edge/80 bg-white/70 px-4 py-1.5 text-[0.96rem] text-slate-800 transition hover:bg-white" @click="logout">
           Sign out
         </button>
       </div>

@@ -3,7 +3,7 @@
     <PageHeader
       title="Settings"
       eyebrow="Configuration"
-      description="Manage your personal defaults and platform-wide LDAP/SNMP controls from a cleaner, role-focused view."
+      description="Manage your personal defaults, authentication posture, and runtime diagnostics from a clearer admin workspace."
     >
       <button class="btn-primary" :disabled="isLoading" @click="load">{{ isLoading ? 'Refreshing...' : 'Refresh' }}</button>
     </PageHeader>
@@ -13,6 +13,20 @@
       <CardStat label="Environment" :value="settings.runtime.environment || 'n/a'" tone="runtime" helper="Treat production as change-controlled." />
       <CardStat label="Risk level" :value="(settings.risk_level || 'unknown').toUpperCase()" :tone="riskTone" helper="Computed from runtime warnings and dependency checks." />
       <CardStat label="Warnings" :value="warningCount" tone="failed" :helper="warningCount ? 'Address high-severity warnings first.' : 'No warnings reported.'" />
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-2">
+      <button
+        v-for="section in sections"
+        :key="section.id"
+        class="rounded-full px-4 py-2 text-sm font-medium transition"
+        :class="activeSection === section.id
+          ? 'border border-console-edge bg-white text-slate-900 shadow-sm'
+          : 'border border-console-edge/70 bg-console-panel/70 text-console-muted hover:bg-white/80 hover:text-slate-900'"
+        @click="activeSection = section.id"
+      >
+        {{ section.label }}
+      </button>
     </div>
 
     <div class="mt-6 space-y-3">
@@ -36,17 +50,18 @@
       />
     </div>
 
-    <div class="mt-6 grid gap-6 xl:grid-cols-2">
-      <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-5">
+    <section v-if="activeSection === 'profile'" class="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <section class="rounded-3xl border border-console-edge bg-white/85 p-6 shadow-sm">
         <div class="flex flex-wrap items-start justify-between gap-4">
-          <div class="min-w-0">
-            <p class="text-xs uppercase tracking-[0.2em] text-console-muted">User Preferences</p>
-            <h3 class="mt-2 text-lg font-semibold text-slate-900">Personal defaults</h3>
+          <div>
+            <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Profile defaults</p>
+            <h3 class="mt-2 text-xl font-semibold text-slate-900">Personal preferences</h3>
+            <p class="mt-2 text-sm text-console-muted">These settings control how timestamps and refresh behavior appear for your own admin session.</p>
           </div>
           <button class="btn-primary" :disabled="isSavingUser" @click="saveUserPreferences">{{ isSavingUser ? 'Saving...' : 'Save preferences' }}</button>
         </div>
 
-        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div class="mt-5 grid gap-4 sm:grid-cols-2">
           <label>
             <span class="field-label">Timezone</span>
             <input v-model.trim="userForm.timezone" type="text" placeholder="UTC" :disabled="isSavingUser" />
@@ -73,7 +88,7 @@
           <label class="setting-row sm:col-span-2" :class="{ 'is-disabled': isSavingUser }">
             <div class="setting-copy">
               <p class="setting-title">Relative time labels</p>
-              <p class="setting-help">Show timestamps as relative values in list views.</p>
+              <p class="setting-help">Show timestamps as relative values in list and activity views.</p>
             </div>
             <span class="switch">
               <input v-model="userForm.show_relative_time" type="checkbox" :disabled="isSavingUser" />
@@ -81,150 +96,185 @@
             </span>
           </label>
         </div>
-
-        <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-slate-900">Password reset</p>
-              <p class="mt-1 text-xs text-slate-600">Reset password for the current local account.</p>
-            </div>
-            <button class="btn-secondary" :disabled="isSavingPassword" @click="savePasswordReset">{{ isSavingPassword ? 'Updating...' : 'Update password' }}</button>
-          </div>
-          <div class="mt-3 grid gap-3 sm:grid-cols-2">
-            <label class="sm:col-span-2">
-              <span class="field-label">Current password</span>
-              <input v-model="passwordForm.current_password" type="password" autocomplete="current-password" :disabled="isSavingPassword" />
-            </label>
-            <label>
-              <span class="field-label">New password</span>
-              <input v-model="passwordForm.new_password" type="password" autocomplete="new-password" :disabled="isSavingPassword" />
-            </label>
-            <label>
-              <span class="field-label">Confirm new password</span>
-              <input v-model="passwordForm.confirm_password" type="password" autocomplete="new-password" :disabled="isSavingPassword" />
-            </label>
-          </div>
-        </div>
       </section>
 
-      <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-5">
+      <section class="rounded-3xl border border-console-edge bg-white/85 p-6 shadow-sm">
         <div class="flex flex-wrap items-start justify-between gap-4">
-          <div class="min-w-0">
-            <p class="text-xs uppercase tracking-[0.2em] text-console-muted">System-wide Settings</p>
-            <h3 class="mt-2 text-lg font-semibold text-slate-900">LDAP and SNMP controls</h3>
+          <div>
+            <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Account security</p>
+            <h3 class="mt-2 text-xl font-semibold text-slate-900">Password reset</h3>
+            <p class="mt-2 text-sm text-console-muted">Only available for local accounts. LDAP-backed users should use directory-managed password flows.</p>
           </div>
-          <button class="btn-primary" :disabled="isSavingSystem" @click="saveSystemWide">{{ isSavingSystem ? 'Saving...' : 'Save system settings' }}</button>
+          <button class="btn-secondary" :disabled="isSavingPassword" @click="savePasswordReset">{{ isSavingPassword ? 'Updating...' : 'Update password' }}</button>
         </div>
 
-        <div class="mt-4 space-y-5">
-          <div class="rounded-xl border border-console-edge/80 p-4">
-            <p class="text-sm font-semibold text-slate-900">LDAP configuration</p>
-            <div class="mt-3 grid gap-3 sm:grid-cols-2">
-              <label class="setting-row sm:col-span-2" :class="{ 'is-disabled': isSavingSystem }">
-                <div class="setting-copy">
-                  <p class="setting-title">LDAP enabled</p>
-                  <p class="setting-help">Use directory authentication for sign-in.</p>
-                </div>
-                <span class="switch">
-                  <input v-model="systemForm.ldap.enabled" type="checkbox" :disabled="isSavingSystem" />
-                  <span class="switch-track"></span>
-                </span>
-              </label>
-              <label>
-                <span class="field-label">LDAP server URI</span>
-                <input v-model.trim="systemForm.ldap.server_uri" type="text" placeholder="ldap://ldap.example.internal" :disabled="isSavingSystem" />
-              </label>
-              <label>
-                <span class="field-label">Bind DN</span>
-                <input v-model.trim="systemForm.ldap.bind_dn" type="text" placeholder="cn=svc,dc=example,dc=internal" :disabled="isSavingSystem" />
-              </label>
-              <label>
-                <span class="field-label">Search base</span>
-                <input v-model.trim="systemForm.ldap.search_base" type="text" placeholder="dc=example,dc=internal" :disabled="isSavingSystem" />
-              </label>
-              <label>
-                <span class="field-label">Username attribute</span>
-                <input v-model.trim="systemForm.ldap.username_attribute" type="text" placeholder="sAMAccountName" :disabled="isSavingSystem" />
-              </label>
-              <label class="sm:col-span-2">
-                <span class="field-label">Search filter</span>
-                <input v-model.trim="systemForm.ldap.search_filter" type="text" placeholder="(sAMAccountName={username})" :disabled="isSavingSystem" />
-              </label>
-              <label>
-                <span class="field-label">User DN template</span>
-                <input v-model.trim="systemForm.ldap.user_dn_template" type="text" placeholder="uid={username},ou=people,dc=example,dc=internal" :disabled="isSavingSystem" />
-              </label>
-              <div class="space-y-2 rounded-xl border border-console-edge px-3 py-2">
-                <label class="setting-row" :class="{ 'is-disabled': isSavingSystem }">
-                  <div class="setting-copy">
-                    <p class="setting-title">Use SSL</p>
-                    <p class="setting-help">Encrypt LDAP transport with TLS/SSL.</p>
-                  </div>
-                  <span class="switch">
-                    <input v-model="systemForm.ldap.use_ssl" type="checkbox" :disabled="isSavingSystem" />
-                    <span class="switch-track"></span>
-                  </span>
-                </label>
-                <label class="setting-row" :class="{ 'is-disabled': isSavingSystem }">
-                  <div class="setting-copy">
-                    <p class="setting-title">Allow local fallback auth</p>
-                    <p class="setting-help">Permit local accounts when LDAP is unavailable.</p>
-                  </div>
-                  <span class="switch">
-                    <input v-model="systemForm.ldap.allow_local_auth" type="checkbox" :disabled="isSavingSystem" />
-                    <span class="switch-track"></span>
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="rounded-xl border border-console-edge/80 p-4">
-            <p class="text-sm font-semibold text-slate-900">SNMP settings</p>
-            <div class="mt-3 grid gap-3 sm:grid-cols-2">
-              <label class="setting-row sm:col-span-2" :class="{ 'is-disabled': isSavingSystem }">
-                <div class="setting-copy">
-                  <p class="setting-title">SNMP enabled</p>
-                  <p class="setting-help">Enable SNMP defaults for inventory integrations.</p>
-                </div>
-                <span class="switch">
-                  <input v-model="systemForm.snmp.enabled" type="checkbox" :disabled="isSavingSystem" />
-                  <span class="switch-track"></span>
-                </span>
-              </label>
-              <label>
-                <span class="field-label">Version</span>
-                <select v-model="systemForm.snmp.version" :disabled="isSavingSystem">
-                  <option value="v1">v1</option>
-                  <option value="v2c">v2c</option>
-                  <option value="v3">v3</option>
-                </select>
-              </label>
-              <label>
-                <span class="field-label">Default port</span>
-                <input v-model.number="systemForm.snmp.default_port" type="number" min="1" max="65535" :disabled="isSavingSystem" />
-              </label>
-              <label>
-                <span class="field-label">Timeout (seconds)</span>
-                <input v-model.number="systemForm.snmp.timeout_seconds" type="number" min="1" max="30" :disabled="isSavingSystem" />
-              </label>
-              <label>
-                <span class="field-label">Retries</span>
-                <input v-model.number="systemForm.snmp.retries" type="number" min="0" max="10" :disabled="isSavingSystem" />
-              </label>
-              <label class="sm:col-span-2">
-                <span class="field-label">Trap target</span>
-                <input v-model.trim="systemForm.snmp.trap_target" type="text" placeholder="snmp-traps.example.internal" :disabled="isSavingSystem" />
-              </label>
-            </div>
-          </div>
+        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+          <label class="sm:col-span-2">
+            <span class="field-label">Current password</span>
+            <input v-model="passwordForm.current_password" type="password" autocomplete="current-password" :disabled="isSavingPassword" />
+          </label>
+          <label>
+            <span class="field-label">New password</span>
+            <input v-model="passwordForm.new_password" type="password" autocomplete="new-password" :disabled="isSavingPassword" />
+          </label>
+          <label>
+            <span class="field-label">Confirm new password</span>
+            <input v-model="passwordForm.confirm_password" type="password" autocomplete="new-password" :disabled="isSavingPassword" />
+          </label>
         </div>
       </section>
-    </div>
+    </section>
 
-    <section class="mt-6 rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-300/25">
+    <section v-else-if="activeSection === 'auth'" class="mt-6 rounded-3xl border border-console-edge bg-white/85 p-6 shadow-sm">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Authentication posture</p>
+          <h3 class="mt-2 text-xl font-semibold text-slate-900">LDAP and local access</h3>
+          <p class="mt-2 max-w-3xl text-sm text-console-muted">Use this section to define how admins and operators sign in, and whether local fallback should remain enabled.</p>
+        </div>
+        <button class="btn-primary" :disabled="isSavingSystem" @click="saveSystemWide">{{ isSavingSystem ? 'Saving...' : 'Save auth settings' }}</button>
+      </div>
+
+      <div class="mt-6 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+        <div class="rounded-2xl border border-console-edge/80 bg-console-panel/60 p-5">
+          <p class="text-sm font-semibold text-slate-900">LDAP configuration</p>
+          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+            <label class="setting-row sm:col-span-2" :class="{ 'is-disabled': isSavingSystem }">
+              <div class="setting-copy">
+                <p class="setting-title">LDAP enabled</p>
+                <p class="setting-help">Use directory authentication for sign-in.</p>
+              </div>
+              <span class="switch">
+                <input v-model="systemForm.ldap.enabled" type="checkbox" :disabled="isSavingSystem" />
+                <span class="switch-track"></span>
+              </span>
+            </label>
+            <label>
+              <span class="field-label">LDAP server URI</span>
+              <input v-model.trim="systemForm.ldap.server_uri" type="text" placeholder="ldap://ldap.example.internal" :disabled="isSavingSystem" />
+            </label>
+            <label>
+              <span class="field-label">Bind DN</span>
+              <input v-model.trim="systemForm.ldap.bind_dn" type="text" placeholder="cn=svc,dc=example,dc=internal" :disabled="isSavingSystem" />
+            </label>
+            <label>
+              <span class="field-label">Search base</span>
+              <input v-model.trim="systemForm.ldap.search_base" type="text" placeholder="dc=example,dc=internal" :disabled="isSavingSystem" />
+            </label>
+            <label>
+              <span class="field-label">Username attribute</span>
+              <input v-model.trim="systemForm.ldap.username_attribute" type="text" placeholder="sAMAccountName" :disabled="isSavingSystem" />
+            </label>
+            <label class="sm:col-span-2">
+              <span class="field-label">Search filter</span>
+              <input v-model.trim="systemForm.ldap.search_filter" type="text" placeholder="(sAMAccountName={username})" :disabled="isSavingSystem" />
+            </label>
+            <label class="sm:col-span-2">
+              <span class="field-label">User DN template</span>
+              <input v-model.trim="systemForm.ldap.user_dn_template" type="text" placeholder="uid={username},ou=people,dc=example,dc=internal" :disabled="isSavingSystem" />
+            </label>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div class="rounded-2xl border border-console-edge/80 bg-console-panel/60 p-5">
+            <label class="setting-row" :class="{ 'is-disabled': isSavingSystem }">
+              <div class="setting-copy">
+                <p class="setting-title">Use SSL</p>
+                <p class="setting-help">Encrypt LDAP transport with TLS/SSL.</p>
+              </div>
+              <span class="switch">
+                <input v-model="systemForm.ldap.use_ssl" type="checkbox" :disabled="isSavingSystem" />
+                <span class="switch-track"></span>
+              </span>
+            </label>
+          </div>
+          <div class="rounded-2xl border border-console-edge/80 bg-console-panel/60 p-5">
+            <label class="setting-row" :class="{ 'is-disabled': isSavingSystem }">
+              <div class="setting-copy">
+                <p class="setting-title">Allow local fallback auth</p>
+                <p class="setting-help">Permit local accounts when LDAP is unavailable.</p>
+              </div>
+              <span class="switch">
+                <input v-model="systemForm.ldap.allow_local_auth" type="checkbox" :disabled="isSavingSystem" />
+                <span class="switch-track"></span>
+              </span>
+            </label>
+          </div>
+          <div class="rounded-2xl border border-console-edge/80 bg-console-panel/60 p-5 text-sm text-console-muted">
+            <p class="font-semibold text-slate-900">Current risk guidance</p>
+            <p class="mt-2">In production, disable local fallback unless you have a tested break-glass path and documented approval process.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section v-else-if="activeSection === 'integrations'" class="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+      <section class="rounded-3xl border border-console-edge bg-white/85 p-6 shadow-sm">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Integration defaults</p>
+            <h3 class="mt-2 text-xl font-semibold text-slate-900">SNMP settings</h3>
+            <p class="mt-2 text-sm text-console-muted">Set default SNMP behavior used by inventory-related integrations and future discovery workflows.</p>
+          </div>
+          <button class="btn-primary" :disabled="isSavingSystem" @click="saveSystemWide">{{ isSavingSystem ? 'Saving...' : 'Save integration settings' }}</button>
+        </div>
+
+        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+          <label class="setting-row sm:col-span-2" :class="{ 'is-disabled': isSavingSystem }">
+            <div class="setting-copy">
+              <p class="setting-title">SNMP enabled</p>
+              <p class="setting-help">Enable SNMP defaults for inventory integrations.</p>
+            </div>
+            <span class="switch">
+              <input v-model="systemForm.snmp.enabled" type="checkbox" :disabled="isSavingSystem" />
+              <span class="switch-track"></span>
+            </span>
+          </label>
+          <label>
+            <span class="field-label">Version</span>
+            <select v-model="systemForm.snmp.version" :disabled="isSavingSystem">
+              <option value="v1">v1</option>
+              <option value="v2c">v2c</option>
+              <option value="v3">v3</option>
+            </select>
+          </label>
+          <label>
+            <span class="field-label">Default port</span>
+            <input v-model.number="systemForm.snmp.default_port" type="number" min="1" max="65535" :disabled="isSavingSystem" />
+          </label>
+          <label>
+            <span class="field-label">Timeout (seconds)</span>
+            <input v-model.number="systemForm.snmp.timeout_seconds" type="number" min="1" max="30" :disabled="isSavingSystem" />
+          </label>
+          <label>
+            <span class="field-label">Retries</span>
+            <input v-model.number="systemForm.snmp.retries" type="number" min="0" max="10" :disabled="isSavingSystem" />
+          </label>
+          <label class="sm:col-span-2">
+            <span class="field-label">Trap target</span>
+            <input v-model.trim="systemForm.snmp.trap_target" type="text" placeholder="snmp-traps.example.internal" :disabled="isSavingSystem" />
+          </label>
+        </div>
+      </section>
+
+      <section class="rounded-3xl border border-console-edge bg-white/85 p-6 shadow-sm">
+        <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Runtime integrations</p>
+        <h3 class="mt-2 text-xl font-semibold text-slate-900">Environment details</h3>
+        <div class="mt-5 space-y-3 text-sm text-console-muted">
+          <p><strong>Database:</strong> {{ settings.integrations.database_driver || 'n/a' }} @ {{ settings.integrations.database_host || 'n/a' }}</p>
+          <p><strong>Redis:</strong> {{ settings.integrations.redis_host || 'n/a' }} (db {{ settings.integrations.redis_db ?? 'n/a' }})</p>
+          <p><strong>Runner data dir:</strong> {{ settings.execution.runner_data_dir || 'n/a' }}</p>
+          <p><strong>Artifact retention:</strong> {{ settings.execution.artifact_retention_days ?? 'n/a' }} days</p>
+          <p><strong>API prefix:</strong> {{ settings.runtime.api_prefix || 'n/a' }}</p>
+          <p><strong>Log level:</strong> {{ settings.runtime.log_level || 'n/a' }}</p>
+        </div>
+      </section>
+    </section>
+
+    <section v-else class="mt-6 rounded-3xl border border-console-edge bg-white/85 p-6 shadow-sm">
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div class="min-w-0">
+        <div>
           <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Runtime posture</p>
           <h3 class="mt-2 text-xl font-semibold text-slate-900">Warnings and diagnostics</h3>
           <p class="mt-1 text-sm text-console-muted">Generated at: {{ generatedAtLabel }}</p>
@@ -237,22 +287,22 @@
 
       <div class="mt-5 grid gap-6 xl:grid-cols-2">
         <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-4">
-          <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Runtime integrations</p>
-          <div class="mt-3 space-y-2 text-sm">
-            <p><strong>Database:</strong> {{ settings.integrations.database_driver || 'n/a' }} @ {{ settings.integrations.database_host || 'n/a' }}</p>
-            <p><strong>Redis:</strong> {{ settings.integrations.redis_host || 'n/a' }} (db {{ settings.integrations.redis_db ?? 'n/a' }})</p>
-            <p><strong>Runner data dir:</strong> {{ settings.execution.runner_data_dir || 'n/a' }}</p>
-            <p><strong>Artifact retention:</strong> {{ settings.execution.artifact_retention_days ?? 'n/a' }} days</p>
-          </div>
-        </section>
-
-        <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-4">
           <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Dependency health</p>
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
             <HealthChip label="Database" :ok="settings.health.db_ready" :detail="settings.health.db_detail" />
             <HealthChip label="Redis" :ok="settings.health.redis_ready" :detail="settings.health.redis_detail" />
             <HealthChip label="Runner path" :ok="settings.health.runner_path_writable" :detail="settings.health.runner_detail" />
             <HealthChip label="Celery worker" :ok="settings.health.celery_worker_online" :detail="settings.health.celery_detail" />
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Risk summary</p>
+          <div class="mt-3 space-y-2 text-sm text-console-muted">
+            <p><strong>Environment:</strong> {{ settings.runtime.environment || 'n/a' }}</p>
+            <p><strong>LDAP enabled:</strong> {{ settings.ldap_enabled ? 'Yes' : 'No' }}</p>
+            <p><strong>Local auth allowed:</strong> {{ settings.allow_local_auth ? 'Yes' : 'No' }}</p>
+            <p><strong>Session TTL:</strong> {{ settings.session_ttl_minutes || 0 }} minutes</p>
           </div>
         </section>
       </div>
@@ -373,6 +423,14 @@ const HealthChip = {
 }
 
 const app = useAppStore()
+const activeSection = ref<'profile' | 'auth' | 'integrations' | 'diagnostics'>('profile')
+const sections = [
+  { id: 'profile', label: 'Profile' },
+  { id: 'auth', label: 'Auth' },
+  { id: 'integrations', label: 'Integrations' },
+  { id: 'diagnostics', label: 'Diagnostics' },
+] as const
+
 const settings = reactive<SettingsPayload>({
   app_name: '',
   environment: '',
@@ -646,31 +704,29 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   gap: 0.9rem;
-  border: 1px solid rgb(203 213 225 / 0.95);
-  border-radius: 0.75rem;
-  background: rgb(255 255 255 / 0.9);
-  padding: 0.65rem 0.85rem;
+  border: 1px solid rgb(216 207 193 / 0.95);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 0.82);
+  padding: 0.8rem 1rem;
 }
 
 .setting-copy {
   min-width: 0;
-  overflow-wrap: normal;
-  word-break: normal;
 }
 
 .setting-title {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-weight: 600;
   line-height: 1.2rem;
   color: rgb(15 23 42);
 }
 
 .setting-help {
-  margin: 0.1rem 0 0;
-  font-size: 0.76rem;
-  line-height: 1.1rem;
-  color: rgb(100 116 139);
+  margin: 0.18rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.15rem;
+  color: rgb(92 103 125);
 }
 
 .switch {
@@ -678,8 +734,8 @@ onMounted(load)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  min-width: 2.25rem;
+  width: 2.4rem;
+  min-width: 2.4rem;
   flex-shrink: 0;
 }
 
@@ -691,35 +747,35 @@ onMounted(load)
 }
 
 .switch-track {
-  width: 2.25rem;
-  height: 1.3rem;
+  width: 2.4rem;
+  height: 1.38rem;
   border-radius: 999px;
   border: 1px solid rgb(148 163 184);
   background: rgb(226 232 240);
-  transition: all 120ms ease;
+  transition: all 140ms ease;
   position: relative;
 }
 
 .switch-track::after {
   content: '';
   position: absolute;
-  left: 0.1rem;
-  top: 0.1rem;
+  left: 0.12rem;
+  top: 0.11rem;
   width: 1rem;
   height: 1rem;
   border-radius: 999px;
   background: rgb(255 255 255);
   box-shadow: 0 1px 3px rgb(15 23 42 / 0.25);
-  transition: transform 120ms ease;
+  transition: transform 140ms ease;
 }
 
 .switch input:checked + .switch-track {
-  background: rgb(14 165 233 / 0.32);
-  border-color: rgb(14 116 144 / 0.75);
+  background: rgb(15 118 110 / 0.28);
+  border-color: rgb(15 118 110 / 0.75);
 }
 
 .switch input:checked + .switch-track::after {
-  transform: translateX(0.9rem);
+  transform: translateX(1rem);
 }
 
 .setting-row.is-disabled {

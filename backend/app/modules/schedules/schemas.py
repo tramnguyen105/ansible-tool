@@ -64,3 +64,19 @@ class ScheduleRead(ModelBase):
     next_run_at: datetime | None = None
     last_run_at: datetime | None = None
     created_at: datetime
+
+
+class ScheduleListSummaryRead(ModelBase):
+    total: int
+    enabled: int
+    check_mode: int
+    next_due_at: datetime | None = None
+
+
+class ScheduleListRead(ModelBase):
+    items: list[ScheduleRead]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+    summary: ScheduleListSummaryRead

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.auth import AuthSession, Role, User, UserRole
+from app.models.system import AuthLoginThrottle
 
 
 class AuthRepository:
@@ -106,3 +107,36 @@ class AuthRepository:
         sessions = self.session.scalars(select(AuthSession).where(AuthSession.expires_at < now)).all()
         for auth_session in sessions:
             self.session.delete(auth_session)
+
+    def get_login_throttle(self, subject_key: str) -> AuthLoginThrottle | None:
+        return self.session.scalar(select(AuthLoginThrottle).where(AuthLoginThrottle.subject_key == subject_key))
+
+    def upsert_login_throttle(
+        self,
+        *,
+        subject_key: str,
+        attempt_count: int,
+        window_started_at: datetime,
+        last_attempt_at: datetime,
+    ) -> AuthLoginThrottle:
+        throttle = self.get_login_throttle(subject_key)
+        if throttle is None:
+            throttle = AuthLoginThrottle(
+                subject_key=subject_key,
+                attempt_count=attempt_count,
+                window_started_at=window_started_at,
+                last_attempt_at=last_attempt_at,
+            )
+            self.session.add(throttle)
+        else:
+            throttle.attempt_count = attempt_count
+            throttle.window_started_at = window_started_at
+            throttle.last_attempt_at = last_attempt_at
+        self.session.flush()
+        return throttle
+
+    def delete_login_throttle(self, subject_key: str) -> None:
+        throttle = self.get_login_throttle(subject_key)
+        if throttle is not None:
+            self.session.delete(throttle)
+            self.session.flush()

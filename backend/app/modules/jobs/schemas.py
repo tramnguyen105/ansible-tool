@@ -52,3 +52,20 @@ class JobRead(ModelBase):
     finished_at: datetime | None = None
     created_at: datetime
     result: JobResultRead | None = None
+
+
+class JobListSummaryRead(ModelBase):
+    queued: int
+    running: int
+    success: int
+    failed: int
+    check_mode: int
+
+
+class JobListRead(ModelBase):
+    items: list[JobRead]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+    summary: JobListSummaryRead

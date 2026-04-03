@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -53,3 +54,23 @@ class SystemConfiguration(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     snmp_timeout_seconds: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     snmp_retries: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     snmp_trap_target: Mapped[str | None] = mapped_column(String(255))
+
+
+class AuthLoginThrottle(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = 'auth_login_throttles'
+    __table_args__ = (UniqueConstraint('subject_key', name='uq_auth_login_throttles_subject_key'),)
+
+    subject_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class InventoryImportPreviewToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = 'inventory_import_preview_tokens'
+    __table_args__ = (UniqueConstraint('preview_id', name='uq_inventory_import_preview_tokens_preview_id'),)
+
+    preview_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    payload_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)

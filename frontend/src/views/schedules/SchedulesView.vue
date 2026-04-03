@@ -10,10 +10,10 @@
     </PageHeader>
 
     <div class="grid gap-4 xl:grid-cols-4">
-      <CardStat label="Schedules" :value="rows.length" tone="cataloged" :helper="rows.length ? 'Recurring automation entries are configured.' : 'No schedules have been created.'" />
-      <CardStat label="Enabled" :value="enabledCount" tone="enabled" :helper="enabledCount ? 'These schedules can dispatch work automatically.' : 'No schedules are currently active.'" />
-      <CardStat label="Check mode" :value="checkModeCount" tone="review" :helper="checkModeCount ? 'Some schedules are limited to validation runs.' : 'No schedules currently use check mode.'" />
-      <CardStat label="Next due" :value="nextDueLabel" tone="timed" helper="The earliest enabled schedule due to run from the current list." />
+      <CardStat label="Schedules" :value="summary.total" tone="cataloged" :helper="summary.total ? 'Recurring automation entries are configured.' : 'No schedules have been created.'" />
+      <CardStat label="Enabled" :value="summary.enabled" tone="enabled" :helper="summary.enabled ? 'These schedules can dispatch work automatically.' : 'No schedules are currently active.'" />
+      <CardStat label="Check mode" :value="summary.checkMode" tone="review" :helper="summary.checkMode ? 'Some schedules are limited to validation runs.' : 'No schedules currently use check mode.'" />
+      <CardStat label="Next due" :value="nextDueLabel" tone="timed" helper="The earliest enabled schedule due to run from the current result set." />
     </div>
 
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
@@ -23,7 +23,7 @@
           <h3 class="mt-2 text-[1.15rem] font-semibold text-slate-900">Schedule library</h3>
           <p class="mt-2 text-[0.96rem] text-slate-600">Filter by name, state, or execution mode to isolate schedules quickly.</p>
         </div>
-        <div class="grid gap-3 sm:grid-cols-2 lg:min-w-[460px] xl:grid-cols-3">
+        <div class="grid gap-3 sm:grid-cols-2 lg:min-w-[460px] xl:grid-cols-4">
           <input v-model="search" :disabled="isLoading" placeholder="Search by schedule name" />
           <select v-model="enabledFilter" :disabled="isLoading">
             <option value="all">All states</option>
@@ -35,29 +35,35 @@
             <option value="check">Check mode</option>
             <option value="live">Live execution</option>
           </select>
+          <button class="btn-secondary" :disabled="isLoading" @click="load">Refresh list</button>
         </div>
       </div>
     </section>
 
-    <div class="mt-6">
+    <div class="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
       <DataTable
         title="Schedule library"
-        description="Review cron cadence, execution mode, and next run timing before allowing automation to continue unattended."
+        description="Review cadence, execution mode, and next run timing before allowing automation to continue unattended."
         :columns="columns"
-        :rows="filteredRows"
+        :rows="rows"
         :loading="isLoading"
+        :error="Boolean(queryError)"
+        :sort-by="sortBy"
+        :sort-order="sortOrder as 'asc' | 'desc'"
         loading-title="Loading schedules"
-        loading-description="Collecting recurring automation records and calculating the next visible dispatch windows."
-        :empty-title="hasActiveFilters ? 'No schedules match your current filters' : 'No schedules saved'"
-        :empty-description="hasActiveFilters
-          ? 'Adjust or clear filters to review additional recurring automation entries.'
-          : 'Create a schedule after the same playbook has been validated manually with the intended inventory and credentials.'"
+        loading-description="Collecting recurring automation records and next dispatch windows."
+        error-title="Schedules are unavailable"
+        error-description="The schedule query failed. Retry the request or adjust the current filters."
+        empty-title="No schedules match your current filters"
+        empty-description="Create a schedule after the same playbook has been validated manually with the intended inventory and credentials."
+        @retry="load"
+        @sort="handleSort"
       >
         <template #name="{ row }">
-          <div>
+          <button class="text-left" @click="inspectSchedule(row)">
             <p class="font-medium text-slate-900">{{ row.name }}</p>
             <p class="mt-1 text-xs text-console-muted">{{ row.description || 'No description provided' }}</p>
-          </div>
+          </button>
         </template>
         <template #cron_expression="{ row }">
           <div>
@@ -76,103 +82,81 @@
         </template>
         <template #actions="{ row }">
           <div class="flex justify-end gap-3 text-sm">
+            <button class="text-console-glow transition hover:text-slate-900" :disabled="isSaving" @click="inspectSchedule(row)">Review</button>
             <button class="text-console-glow transition hover:text-slate-900" :disabled="isSaving" @click="openEdit(row)">Edit</button>
-            <button class="text-rose-300 transition hover:text-rose-200 disabled:opacity-50" :disabled="isSaving" @click="removeSchedule(row)">Delete</button>
+            <button class="text-rose-500 transition hover:text-rose-700 disabled:opacity-50" :disabled="isSaving" @click="removeSchedule(row)">Delete</button>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-slate-600">Showing {{ rows.length ? offset + 1 : 0 }}-{{ offset + rows.length }} of {{ totalSchedules }} schedules</p>
+            <div class="flex items-center gap-2">
+              <button class="btn-secondary" :disabled="isLoading || page <= 1" @click="goToPreviousPage">Previous</button>
+              <span class="text-sm text-slate-500">Page {{ page }}</span>
+              <button class="btn-secondary" :disabled="isLoading || !hasMore" @click="goToNextPage">Next</button>
+            </div>
           </div>
         </template>
       </DataTable>
+
+      <section class="rounded-3xl border border-console-edge bg-white p-5 shadow-lg shadow-slate-200/40">
+        <div>
+          <p class="text-xs uppercase tracking-[0.18em] text-console-glow">Review Panel</p>
+          <h3 class="mt-2 text-xl font-semibold text-slate-900">{{ activeSchedule?.name || 'Select a schedule' }}</h3>
+          <p class="mt-2 text-sm leading-6 text-console-muted">{{ activeSchedule?.description || 'Choose a schedule to review cadence, scope, mode, and next dispatch timing.' }}</p>
+        </div>
+
+        <div v-if="activeSchedule" class="mt-5 space-y-4">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="rounded-2xl border border-console-edge/80 p-4"><p class="text-xs uppercase tracking-[0.14em] text-console-muted">State</p><p class="mt-2 text-sm font-semibold text-slate-900">{{ activeSchedule.enabled ? 'Enabled' : 'Disabled' }}</p></div>
+            <div class="rounded-2xl border border-console-edge/80 p-4"><p class="text-xs uppercase tracking-[0.14em] text-console-muted">Mode</p><p class="mt-2 text-sm font-semibold text-slate-900">{{ activeSchedule.check_mode ? 'Check mode only' : 'Live execution' }}</p></div>
+            <div class="rounded-2xl border border-console-edge/80 p-4"><p class="text-xs uppercase tracking-[0.14em] text-console-muted">Cadence</p><p class="mt-2 text-sm font-semibold text-slate-900">{{ activeSchedule.cron_expression }}</p></div>
+            <div class="rounded-2xl border border-console-edge/80 p-4"><p class="text-xs uppercase tracking-[0.14em] text-console-muted">Next run</p><p class="mt-2 text-sm font-semibold text-slate-900">{{ formatDateTime(activeSchedule.next_run_at) }}</p></div>
+            <div class="rounded-2xl border border-console-edge/80 p-4"><p class="text-xs uppercase tracking-[0.14em] text-console-muted">Target</p><p class="mt-2 text-sm font-semibold text-slate-900">{{ targetSummary(activeSchedule) }}</p></div>
+            <div class="rounded-2xl border border-console-edge/80 p-4"><p class="text-xs uppercase tracking-[0.14em] text-console-muted">Timezone</p><p class="mt-2 text-sm font-semibold text-slate-900">{{ activeSchedule.timezone }}</p></div>
+          </div>
+
+          <BannerNotice
+            :title="activeSchedule.check_mode ? 'Validation schedule' : 'Live schedule'"
+            :tone="activeSchedule.check_mode ? 'info' : 'warn'"
+            :text="activeSchedule.check_mode ? 'This schedule should remain safe for unattended validation runs.' : 'This schedule can make unattended production changes. Keep its scope and cadence tightly controlled.'"
+          />
+
+          <div class="flex flex-wrap gap-2">
+            <button class="btn-secondary" :disabled="isSaving" @click="inspectSchedule(activeSchedule)">Refresh detail</button>
+            <button class="btn-primary" :disabled="isSaving" @click="openEdit(activeSchedule)">Edit schedule</button>
+          </div>
+        </div>
+      </section>
     </div>
 
     <DrawerPanel :open="showDrawer" :title="selectedId ? 'Edit schedule' : 'Create schedule'" @close="closeDrawer">
       <div class="space-y-4">
+        <BannerNotice title="Scheduling safety" tone="warn" text="Only schedule jobs that have already been reviewed manually. Unattended live execution should be limited to well-understood, low-risk tasks." />
         <div v-if="isLoadingLookups" class="rounded-2xl border border-console-edge bg-console-deep/50 p-4 text-sm text-console-muted">
           Loading inventories, credentials, and playbooks for schedule targeting.
         </div>
-
         <div class="grid gap-4 md:grid-cols-2">
-          <div>
-            <label class="field-label">Name</label>
-            <input v-model="form.name" :disabled="isSaving || isLoadingLookups" placeholder="nightly-validation" />
-          </div>
-          <div>
-            <label class="field-label">Cron Expression</label>
-            <input v-model="form.cron_expression" :disabled="isSaving || isLoadingLookups" placeholder="0 2 * * *" />
-          </div>
-          <div class="md:col-span-2">
-            <label class="field-label">Description</label>
-            <textarea
-              v-model="form.description"
-              :disabled="isSaving || isLoadingLookups"
-              rows="3"
-              placeholder="Purpose, risk level, and operator notes for this recurring run."
-            />
-          </div>
-          <div>
-            <label class="field-label">Timezone</label>
-            <input v-model="form.timezone" :disabled="isSaving || isLoadingLookups" />
-          </div>
-          <div>
-            <label class="field-label">Inventory</label>
-            <select v-model="form.inventory_id" :disabled="isSaving || isLoadingLookups">
-              <option v-for="item in inventories" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label">Credential</label>
-            <select v-model="form.credential_id" :disabled="isSaving || isLoadingLookups">
-              <option v-for="item in credentials" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label">Playbook</label>
-            <select v-model="form.playbook_id" :disabled="isSaving || isLoadingLookups">
-              <option v-for="item in playbooks" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-          </div>
+          <div><label class="field-label">Name</label><input v-model="form.name" :disabled="isSaving || isLoadingLookups" placeholder="nightly-validation" /></div>
+          <div><label class="field-label">Cron Expression</label><input v-model="form.cron_expression" :disabled="isSaving || isLoadingLookups" placeholder="0 2 * * *" /></div>
+          <div class="md:col-span-2"><label class="field-label">Description</label><textarea v-model="form.description" :disabled="isSaving || isLoadingLookups" rows="3" placeholder="Purpose, risk level, and operator notes for this recurring run." /></div>
+          <div><label class="field-label">Timezone</label><input v-model="form.timezone" :disabled="isSaving || isLoadingLookups" /></div>
+          <div><label class="field-label">Inventory</label><select v-model="form.inventory_id" :disabled="isSaving || isLoadingLookups"><option v-for="item in inventories" :key="item.id" :value="item.id">{{ item.name }}</option></select></div>
+          <div><label class="field-label">Credential</label><select v-model="form.credential_id" :disabled="isSaving || isLoadingLookups"><option v-for="item in credentials" :key="item.id" :value="item.id">{{ item.name }}</option></select></div>
+          <div><label class="field-label">Playbook</label><select v-model="form.playbook_id" :disabled="isSaving || isLoadingLookups"><option v-for="item in playbooks" :key="item.id" :value="item.id">{{ item.name }}</option></select></div>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2">
-          <div>
-            <label class="field-label">Target Type</label>
-            <select v-model="form.target_type" :disabled="isSaving || isLoadingLookups">
-              <option value="all">All managed hosts</option>
-              <option value="hosts">Specific hosts</option>
-              <option value="groups">Specific groups</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label">Target Value</label>
-            <input
-              v-model="form.target_value"
-              :disabled="isSaving || isLoadingLookups"
-              :placeholder="form.target_type === 'all' ? 'Optional host or group selector' : 'Required when targeting hosts or groups'"
-            />
-          </div>
+          <div><label class="field-label">Target Type</label><select v-model="form.target_type" :disabled="isSaving || isLoadingLookups"><option value="all">All managed hosts</option><option value="hosts">Specific hosts</option><option value="groups">Specific groups</option></select></div>
+          <div><label class="field-label">Target Value</label><input v-model="form.target_value" :disabled="isSaving || isLoadingLookups" :placeholder="form.target_type === 'all' ? 'Optional selector' : 'Required for hosts or groups'" /></div>
         </div>
 
-        <BannerNotice
-          v-if="formError"
-          title="Fix schedule form errors"
-          tone="warn"
-          :text="formError"
-        />
+        <BannerNotice v-if="formError" title="Fix schedule form errors" tone="warn" :text="formError" />
 
         <div class="flex flex-wrap items-center gap-5 text-sm text-console-muted">
-          <label class="flex items-center gap-2">
-            <input v-model="form.enabled" :disabled="isSaving || isLoadingLookups" type="checkbox" class="w-auto" />
-            Enabled
-          </label>
-          <label class="flex items-center gap-2">
-            <input v-model="form.check_mode" :disabled="isSaving || isLoadingLookups" type="checkbox" class="w-auto" />
-            Check mode only
-          </label>
+          <label class="flex items-center gap-2"><input v-model="form.enabled" :disabled="isSaving || isLoadingLookups" type="checkbox" class="w-auto" />Enabled</label>
+          <label class="flex items-center gap-2"><input v-model="form.check_mode" :disabled="isSaving || isLoadingLookups" type="checkbox" class="w-auto" />Check mode only</label>
         </div>
-
-        <BannerNotice
-          title="Scheduling safety"
-          tone="warn"
-          text="Only schedule jobs that have already been reviewed manually. Unattended live execution should be limited to well-understood, low-risk tasks."
-        />
 
         <div class="flex justify-end gap-2">
           <button class="btn-secondary" :disabled="isSaving" @click="closeDrawer">Cancel</button>
@@ -187,30 +171,32 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import api from '../../api/client'
+import { schedulesApi, type ScheduleItem, type ScheduleListSummary } from '../../api/schedules'
 import BannerNotice from '../../components/common/BannerNotice.vue'
 import CardStat from '../../components/common/CardStat.vue'
 import DataTable from '../../components/common/DataTable.vue'
 import DrawerPanel from '../../components/common/DrawerPanel.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
+import { useListQueryState } from '../../composables/useListQueryState'
+import { usePagedCollection } from '../../composables/usePagedCollection'
 import { useAppStore } from '../../stores/app'
 import { formatDateTime } from '../../utils/format'
 
+type ScheduleMeta = { summary: ScheduleListSummary }
+
 const app = useAppStore()
-const rows = ref<any[]>([])
 const showDrawer = ref(false)
 const selectedId = ref<string | null>(null)
 const inventories = ref<any[]>([])
 const credentials = ref<any[]>([])
 const playbooks = ref<any[]>([])
-const isLoading = ref(true)
 const isLoadingLookups = ref(false)
 const isSaving = ref(false)
 const hasLoadedLookups = ref(false)
-const search = ref('')
-const enabledFilter = ref('all')
-const modeFilter = ref('all')
 const formError = ref('')
+const queryError = ref<unknown>(null)
+const activeSchedule = ref<ScheduleItem | null>(null)
 const form = reactive<any>({
   name: 'nightly-run',
   description: '',
@@ -225,39 +211,52 @@ const form = reactive<any>({
   extra_vars: {},
   check_mode: false,
 })
+
+const { search, sortBy, sortOrder, page, offset: routeOffset, filters, setSort, setPage } = useListQueryState({
+  pageSize: 10,
+  search: { key: 'search', defaultValue: '' },
+  filters: [{ key: 'enabled', defaultValue: 'all' }, { key: 'mode', defaultValue: 'all' }],
+  sortBy: { key: 'sortBy', defaultValue: 'next_run_at' },
+  sortOrder: { key: 'sortOrder', defaultValue: 'asc' },
+})
+const enabledFilter = filters.enabled
+const modeFilter = filters.mode
+
 const columns = [
-  { key: 'name', label: 'Schedule' },
-  { key: 'cron_expression', label: 'Cadence' },
-  { key: 'enabled', label: 'State' },
-  { key: 'next_run_at', label: 'Next run' },
+  { key: 'name', label: 'Schedule', sortable: true },
+  { key: 'cron_expression', label: 'Cadence', sortable: true },
+  { key: 'enabled', label: 'State', sortable: true },
+  { key: 'next_run_at', label: 'Next run', sortable: true },
 ]
 
-const enabledCount = computed(() => rows.value.filter((item) => item.enabled).length)
-const checkModeCount = computed(() => rows.value.filter((item) => item.check_mode).length)
-const nextDueLabel = computed(() => {
-  const nextRun = rows.value
-    .filter((item) => item.enabled && item.next_run_at)
-    .map((item) => item.next_run_at)
-    .sort()[0]
-  return nextRun ? formatDateTime(nextRun) : 'None'
+const { items: rows, isLoading, total: totalSchedules, hasMore, offset, meta, load: baseLoad, refreshFromStart } = usePagedCollection<ScheduleItem, ScheduleMeta>({
+  pageSize: 10,
+  watchSources: [search, enabledFilter, modeFilter, sortBy, sortOrder],
+  onError: (error) => {
+    queryError.value = error
+    app.pushToast('Schedules could not be loaded', 'error', 'Check API reachability and refresh the schedule library.')
+  },
+  query: async ({ limit, offset }) => {
+    const params: Record<string, string | number> = { limit, offset, sort_by: sortBy.value, sort_order: sortOrder.value }
+    if (search.value.trim()) params.search = search.value.trim()
+    if (enabledFilter.value !== 'all') params.enabled = enabledFilter.value
+    if (modeFilter.value !== 'all') params.mode = modeFilter.value
+    const response = await schedulesApi.query(params)
+    return response.data.data
+  },
 })
-const hasActiveFilters = computed(() => {
-  return search.value.trim().length > 0 || enabledFilter.value !== 'all' || modeFilter.value !== 'all'
-})
-const filteredRows = computed(() => {
-  return rows.value.filter((row) => {
-    const matchesSearch = row.name.toLowerCase().includes(search.value.trim().toLowerCase())
-    const matchesEnabled =
-      enabledFilter.value === 'all' ||
-      (enabledFilter.value === 'enabled' && row.enabled) ||
-      (enabledFilter.value === 'disabled' && !row.enabled)
-    const matchesMode =
-      modeFilter.value === 'all' ||
-      (modeFilter.value === 'check' && row.check_mode) ||
-      (modeFilter.value === 'live' && !row.check_mode)
-    return matchesSearch && matchesEnabled && matchesMode
-  })
-})
+
+const summary = computed(() => ({
+  total: meta.value.summary?.total || 0,
+  enabled: meta.value.summary?.enabled || 0,
+  checkMode: meta.value.summary?.check_mode || 0,
+  nextDueAt: meta.value.summary?.next_due_at || null,
+}))
+const nextDueLabel = computed(() => summary.value.nextDueAt ? formatDateTime(summary.value.nextDueAt) : 'None')
+
+function targetSummary(schedule: ScheduleItem) {
+  return schedule.target_type === 'all' ? 'All managed hosts' : `${schedule.target_type}: ${schedule.target_value || 'Not set'}`
+}
 
 function resetForm() {
   selectedId.value = null
@@ -303,7 +302,11 @@ function openCreate() {
   showDrawer.value = true
 }
 
-function openEdit(row: any) {
+function inspectSchedule(row: ScheduleItem) {
+  activeSchedule.value = row
+}
+
+function openEdit(row: ScheduleItem) {
   formError.value = ''
   selectedId.value = row.id
   form.name = row.name
@@ -318,6 +321,7 @@ function openEdit(row: any) {
   form.target_value = row.target_value || ''
   form.extra_vars = row.extra_vars_json || {}
   form.check_mode = row.check_mode
+  activeSchedule.value = row
   showDrawer.value = true
 }
 
@@ -329,23 +333,15 @@ function closeDrawer() {
 }
 
 async function load() {
-  isLoading.value = true
-  try {
-    const response = await api.get('/schedules')
-    rows.value = response.data.data
-  } catch {
-    app.pushToast('Schedules could not be loaded', 'error', 'Check API reachability and refresh the schedule library.')
-  } finally {
-    isLoading.value = false
-  }
+  queryError.value = null
+  await baseLoad().catch(() => undefined)
 }
 
-watch(
-  () => showDrawer.value,
-  (open) => {
-    if (open) loadLookups()
-  },
-)
+function handleSort(key: string) { setSort(key) }
+function goToNextPage() { if (!hasMore.value) return; setPage(page.value + 1); return load() }
+function goToPreviousPage() { if (page.value <= 1) return; setPage(page.value - 1); return load() }
+
+watch(() => showDrawer.value, (open) => { if (open) loadLookups() })
 
 function validateForm() {
   const cronPattern = /^(\S+\s+){4}\S+$/
@@ -380,14 +376,14 @@ async function save() {
       extra_vars: form.extra_vars || {},
     }
     if (selectedId.value) {
-      await api.put(`/schedules/${selectedId.value}`, payload)
+      await schedulesApi.update(selectedId.value, payload)
       app.pushToast('Schedule updated', 'success', 'The recurring run definition has been updated.')
     } else {
-      await api.post('/schedules', payload)
+      await schedulesApi.create(payload)
       app.pushToast('Schedule saved', 'success', 'The schedule is now available for automatic dispatch.')
     }
     closeDrawer()
-    await load()
+    await refreshFromStart()
   } catch (error: any) {
     app.pushToast(error?.response?.data?.message || 'Schedule could not be saved', 'error')
   } finally {
@@ -395,16 +391,27 @@ async function save() {
   }
 }
 
-async function removeSchedule(row: any) {
+async function removeSchedule(row: ScheduleItem) {
   if (!window.confirm(`Delete schedule "${row.name}"?`)) return
   try {
-    await api.delete(`/schedules/${row.id}`)
+    await schedulesApi.remove(row.id)
     app.pushToast('Schedule deleted', 'success')
-    await load()
+    await refreshFromStart()
   } catch (error: any) {
     app.pushToast(error?.response?.data?.message || 'Schedule could not be deleted', 'error')
   }
 }
+
+watch(routeOffset, (nextOffset) => { offset.value = nextOffset }, { immediate: true })
+watch(rows, (currentRows) => {
+  if (!currentRows.length) {
+    activeSchedule.value = null
+    return
+  }
+  if (!activeSchedule.value || !currentRows.some((row) => row.id === activeSchedule.value?.id)) {
+    activeSchedule.value = currentRows[0]
+  }
+})
 
 onMounted(async () => {
   await load()

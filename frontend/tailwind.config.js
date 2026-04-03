@@ -4,20 +4,21 @@ export default {
     extend: {
       colors: {
         console: {
-          deep: '#ffffff',
-          panel: '#f8fafc',
-          surface: '#eef2ff',
-          edge: '#cbd5e1',
-          glow: '#1d4ed8',
-          good: '#047857',
+          deep: '#f4efe4',
+          panel: '#fffdf8',
+          surface: '#f7f1e6',
+          edge: '#d8cfc1',
+          glow: '#0f766e',
+          good: '#0f766e',
           warn: '#b45309',
           bad: '#b91c1c',
-          ink: '#0f172a',
-          muted: '#475569'
+          ink: '#14213d',
+          muted: '#5c677d',
+          accent: '#d97706'
         }
       },
       fontFamily: {
-        sans: ['Segoe UI', 'IBM Plex Sans', 'sans-serif']
+        sans: ['"Aptos"', '"IBM Plex Sans"', '"Segoe UI"', 'sans-serif']
       }
     },
   },

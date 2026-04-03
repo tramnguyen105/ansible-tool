@@ -9,89 +9,88 @@
       <RouterLink class="btn-primary" to="/jobs">Run job</RouterLink>
     </PageHeader>
 
-    <div class="mt-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <section
-        class="rounded-2xl border p-5"
-        :class="primaryState.tone === 'critical'
-          ? 'border-rose-500/30 bg-rose-50'
-          : primaryState.tone === 'active'
-            ? 'border-amber-500/30 bg-amber-50'
-            : 'border-emerald-500/30 bg-emerald-50'"
-      >
-        <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em]" :class="primaryState.tone === 'critical' ? 'text-rose-200' : primaryState.tone === 'active' ? 'text-amber-200' : 'text-emerald-200'">
-          {{ primaryState.eyebrow }}
-        </p>
-        <h3 class="mt-2 text-[1.8rem] font-semibold text-slate-900">{{ primaryState.title }}</h3>
-        <p class="mt-2 text-[0.98rem] leading-7 text-slate-800/90">{{ primaryState.description }}</p>
-      </section>
-
-      <section class="rounded-2xl border border-slate-200 bg-white p-5">
-        <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">Activity window</p>
-        <div class="mt-4 grid gap-4 sm:grid-cols-3">
-          <div>
-            <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Latest job</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ latestJobSummary }}</p>
-          </div>
-          <div>
-            <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Next run</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ nextRunSummary }}</p>
-          </div>
-          <div>
-            <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Enabled schedules</p>
-            <p class="mt-2 text-[0.98rem] font-medium text-slate-900">{{ enabledSchedulesLabel }}</p>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <div class="mt-6 grid gap-4 xl:grid-cols-4">
-      <CardStat label="Failed jobs" :value="statusCounts.failed" tone="tracked" helper="Execution failures requiring review." />
-      <CardStat label="Running jobs" :value="statusCounts.running" tone="managed" helper="Jobs currently queued or in progress." />
-      <CardStat label="Enabled schedules" :value="enabledSchedulesCount" tone="validated" helper="Recurring runs currently active." />
-      <CardStat label="Inventories" :value="stats.inventories" tone="secured" helper="Managed target sets available for jobs." />
-    </div>
-
-    <div v-if="isLoading" class="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-      <div class="h-4 w-36 rounded-full bg-slate-100" />
+    <div v-if="isLoading" class="mt-6 rounded-3xl border border-console-edge bg-white/80 p-6 shadow-sm">
+      <div class="h-4 w-40 rounded-full bg-slate-100" />
       <div class="mt-5 grid gap-4 lg:grid-cols-3">
-        <div class="h-24 rounded-2xl bg-slate-200/80" />
-        <div class="h-24 rounded-2xl bg-slate-200/70" />
-        <div class="h-24 rounded-2xl bg-slate-200/60" />
+        <div class="h-28 rounded-3xl bg-slate-200/80" />
+        <div class="h-28 rounded-3xl bg-slate-200/70" />
+        <div class="h-28 rounded-3xl bg-slate-200/60" />
       </div>
       <p class="mt-5 text-[0.96rem] text-slate-600">Loading dashboard data…</p>
     </div>
 
     <template v-else>
+      <section class="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <div class="rounded-[28px] border border-console-edge bg-white/85 p-6 shadow-sm">
+          <p class="text-[0.76rem] font-semibold uppercase tracking-[0.24em] text-console-glow">{{ primaryState.eyebrow }}</p>
+          <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h3 class="text-[2rem] font-semibold leading-tight text-slate-900">{{ primaryState.title }}</h3>
+              <p class="mt-3 max-w-2xl text-[1rem] leading-7 text-console-muted">{{ primaryState.description }}</p>
+            </div>
+            <div class="rounded-3xl border border-console-edge/80 bg-console-surface/70 px-4 py-4">
+              <p class="text-[0.72rem] uppercase tracking-[0.18em] text-console-muted">Operator focus</p>
+              <p class="mt-2 text-sm font-medium text-slate-900">{{ attentionSummary }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-[28px] border border-console-edge bg-white/85 p-6 shadow-sm">
+          <p class="text-[0.76rem] font-semibold uppercase tracking-[0.24em] text-console-warm">Activity window</p>
+          <div class="mt-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <p class="text-[0.72rem] uppercase tracking-[0.16em] text-console-muted">Latest job</p>
+              <p class="mt-2 text-sm font-medium text-slate-900">{{ latestJobSummary }}</p>
+            </div>
+            <div>
+              <p class="text-[0.72rem] uppercase tracking-[0.16em] text-console-muted">Next run</p>
+              <p class="mt-2 text-sm font-medium text-slate-900">{{ nextRunSummary }}</p>
+            </div>
+            <div>
+              <p class="text-[0.72rem] uppercase tracking-[0.16em] text-console-muted">Enabled schedules</p>
+              <p class="mt-2 text-sm font-medium text-slate-900">{{ enabledSchedulesLabel }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="mt-6 grid gap-4 xl:grid-cols-4">
+        <CardStat label="Failed jobs" :value="jobSummary.failed" tone="tracked" helper="Execution failures requiring review." />
+        <CardStat label="Running jobs" :value="jobSummary.running" tone="managed" helper="Jobs currently queued or in progress." />
+        <CardStat label="Enabled schedules" :value="enabledSchedulesCount" tone="validated" helper="Recurring runs currently active." />
+        <CardStat label="Inventories" :value="inventoryStats.inventories" tone="secured" helper="Managed target sets available for jobs." />
+      </div>
+
       <div class="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <section class="rounded-3xl border border-console-edge bg-white/85 p-5 shadow-sm">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Operational state</p>
+              <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Operational state</p>
               <h3 class="mt-2 text-xl font-semibold text-slate-900">Readiness summary</h3>
             </div>
-            <RouterLink class="text-sm text-console-glow transition hover:text-slate-900" to="/jobs">View jobs</RouterLink>
+            <RouterLink class="text-sm font-medium text-console-glow transition hover:text-slate-900" to="/jobs">View jobs</RouterLink>
           </div>
 
           <div class="mt-5 grid gap-4 md:grid-cols-3">
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Readiness</p>
+            <div class="rounded-2xl border border-console-edge bg-console-surface/70 p-4">
+              <p class="text-[0.74rem] uppercase tracking-[0.14em] text-console-muted">Readiness</p>
               <p class="mt-3 text-[0.97rem] text-slate-700">{{ readinessSummary }}</p>
             </div>
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Next schedule</p>
+            <div class="rounded-2xl border border-console-edge bg-console-surface/70 p-4">
+              <p class="text-[0.74rem] uppercase tracking-[0.14em] text-console-muted">Next schedule</p>
               <p class="mt-3 text-[0.97rem] text-slate-700">{{ nextScheduleSummary }}</p>
             </div>
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-[0.78rem] uppercase tracking-[0.1em] text-slate-500">Attention</p>
-              <p class="mt-3 text-[0.97rem] text-slate-700">{{ attentionSummary }}</p>
+            <div class="rounded-2xl border border-console-edge bg-console-surface/70 p-4">
+              <p class="text-[0.74rem] uppercase tracking-[0.14em] text-console-muted">Coverage</p>
+              <p class="mt-3 text-[0.97rem] text-slate-700">{{ coverageSummary }}</p>
             </div>
           </div>
         </section>
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <section class="rounded-3xl border border-console-edge bg-white/85 p-5 shadow-sm">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Quick actions</p>
+              <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Quick actions</p>
               <h3 class="mt-2 text-xl font-semibold text-slate-900">Common tasks</h3>
             </div>
           </div>
@@ -101,14 +100,14 @@
               v-for="action in quickActions"
               :key="action.to"
               :to="action.to"
-              class="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300 hover:bg-slate-50"
+              class="block rounded-2xl border border-console-edge bg-console-surface/60 px-4 py-4 transition hover:border-console-glow/30 hover:bg-white"
             >
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <p class="font-medium text-slate-900">{{ action.title }}</p>
-                  <p class="mt-1 text-[0.96rem] text-slate-600">{{ action.description }}</p>
+                  <p class="mt-1 text-[0.96rem] text-console-muted">{{ action.description }}</p>
                 </div>
-                <span class="text-[0.95rem] text-slate-500">Open</span>
+                <span class="text-[0.9rem] font-medium text-console-glow">Open</span>
               </div>
             </RouterLink>
           </div>
@@ -141,7 +140,7 @@
             </div>
           </template>
           <template #actions="{ row }">
-            <RouterLink class="text-[0.96rem] font-medium text-sky-300 transition hover:text-slate-900" :to="`/jobs/${row.id}`">Details</RouterLink>
+            <RouterLink class="text-[0.96rem] font-medium text-sky-600 transition hover:text-slate-900" :to="`/jobs/${row.id}`">Details</RouterLink>
           </template>
         </DataTable>
 
@@ -170,7 +169,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import api from '../../api/client'
 import CardStat from '../../components/common/CardStat.vue'
@@ -182,9 +181,11 @@ import { formatDateTime } from '../../utils/format'
 
 const app = useAppStore()
 const isLoading = ref(true)
-const stats = reactive({ inventories: 0, credentials: 0, playbooks: 0, jobs: 0 })
 const jobs = ref<any[]>([])
 const schedules = ref<any[]>([])
+const inventoryStats = ref({ inventories: 0, hosts: 0, enabled_hosts: 0, groups: 0, variable_bearing: 0 })
+const jobSummary = ref({ queued: 0, running: 0, success: 0, failed: 0, check_mode: 0 })
+const supportStats = ref({ credentials: 0, playbooks: 0 })
 
 const quickActions = [
   { title: 'Run job', description: 'Launch automation against a selected target set.', to: '/jobs' },
@@ -209,12 +210,6 @@ const recentJobs = computed(() => jobs.value.slice(0, 6))
 const upcomingSchedules = computed(() => schedules.value.filter((row) => row.enabled).slice(0, 5))
 const enabledSchedulesCount = computed(() => schedules.value.filter((row) => row.enabled).length)
 
-const statusCounts = computed(() => ({
-  success: jobs.value.filter((job) => ['success', 'completed'].includes(job.status)).length,
-  running: jobs.value.filter((job) => ['running', 'queued', 'pending'].includes(job.status)).length,
-  failed: jobs.value.filter((job) => ['failed', 'error'].includes(job.status)).length,
-}))
-
 const latestJob = computed(() => jobs.value[0] || null)
 const nextSchedule = computed(() => upcomingSchedules.value[0] || null)
 const enabledSchedulesLabel = computed(() => enabledSchedulesCount.value === 1 ? '1 active schedule' : `${enabledSchedulesCount.value} active schedules`)
@@ -230,7 +225,7 @@ const nextRunSummary = computed(() => {
 })
 
 const readinessSummary = computed(() => {
-  if (!stats.inventories || !stats.credentials || !stats.playbooks) {
+  if (!inventoryStats.value.inventories || !supportStats.value.credentials || !supportStats.value.playbooks) {
     return 'Inventory, credentials, or playbooks are still missing.'
   }
   return 'Core inputs are present for manual validation runs.'
@@ -242,27 +237,32 @@ const nextScheduleSummary = computed(() => {
 })
 
 const attentionSummary = computed(() => {
-  if (statusCounts.value.failed > 0) return `${statusCounts.value.failed} failed job(s) need review.`
-  if (statusCounts.value.running > 0) return `${statusCounts.value.running} job(s) currently running.`
+  if (jobSummary.value.failed > 0) return `${jobSummary.value.failed} failed job(s) need review.`
+  if (jobSummary.value.running > 0) return `${jobSummary.value.running} job(s) currently running.`
+  if (jobSummary.value.queued > 0) return `${jobSummary.value.queued} job(s) waiting to execute.`
   return 'No immediate execution issues.'
 })
 
+const coverageSummary = computed(() => {
+  return `${inventoryStats.value.enabled_hosts} enabled hosts across ${inventoryStats.value.groups} groups.`
+})
+
 const primaryState = computed(() => {
-  if (statusCounts.value.failed > 0) {
+  if (jobSummary.value.failed > 0) {
     return {
       tone: 'critical',
       eyebrow: 'Needs attention',
-      title: `${statusCounts.value.failed} failed job${statusCounts.value.failed === 1 ? '' : 's'}`,
+      title: `${jobSummary.value.failed} failed job${jobSummary.value.failed === 1 ? '' : 's'}`,
       description: 'Review recent failures before running additional automation against the same target scope.',
     }
   }
 
-  if (statusCounts.value.running > 0) {
+  if (jobSummary.value.running > 0 || jobSummary.value.queued > 0) {
     return {
       tone: 'active',
       eyebrow: 'Automation in progress',
-      title: `${statusCounts.value.running} active job${statusCounts.value.running === 1 ? '' : 's'}`,
-      description: 'Automation is currently running. Avoid overlapping changes until these executions complete.',
+      title: `${jobSummary.value.running + jobSummary.value.queued} active job${jobSummary.value.running + jobSummary.value.queued === 1 ? '' : 's'}`,
+      description: 'Automation is currently running or waiting for worker capacity. Keep overlapping changes deliberate.',
     }
   }
 
@@ -277,19 +277,19 @@ const primaryState = computed(() => {
 async function load() {
   isLoading.value = true
   try {
-    const [inventories, credentials, playbooks, jobsResp, scheduleResp] = await Promise.all([
-      api.get('/inventories'),
+    const [inventoryResp, credentials, playbooks, jobsResp, scheduleResp] = await Promise.all([
+      api.get('/inventories/summary/query', { params: { limit: 1, offset: 0 } }),
       api.get('/credentials'),
       api.get('/playbooks'),
-      api.get('/jobs'),
+      api.get('/jobs/query', { params: { limit: 6, offset: 0, sort_by: 'created_at', sort_order: 'desc' } }),
       api.get('/schedules'),
     ])
 
-    stats.inventories = inventories.data.data.length
-    stats.credentials = credentials.data.data.length
-    stats.playbooks = playbooks.data.data.length
-    stats.jobs = jobsResp.data.data.length
-    jobs.value = jobsResp.data.data
+    inventoryStats.value = inventoryResp.data.data.stats
+    supportStats.value.credentials = credentials.data.data.length
+    supportStats.value.playbooks = playbooks.data.data.length
+    jobs.value = jobsResp.data.data.items
+    jobSummary.value = jobsResp.data.data.summary
     schedules.value = scheduleResp.data.data
   } catch {
     app.pushToast('Dashboard data could not be loaded', 'error', 'Check API reachability and reload the page.')

@@ -5,7 +5,7 @@ from app.models.content import CliConversionJob, Playbook, PlaybookRevision, Tem
 from app.models.credentials import Credential
 from app.models.inventory import Inventory, InventoryGroup, InventoryGroupChild, InventoryGroupHost, InventoryHost
 from app.models.jobs import Job, JobResult, JobSchedule
-from app.models.system import SystemConfiguration, UserPreference
+from app.models.system import AuthLoginThrottle, InventoryImportPreviewToken, SystemConfiguration, UserPreference
 
 __all__ = [
     "AuditLog",
@@ -14,6 +14,7 @@ __all__ = [
     "CliConversionJob",
     "Credential",
     "Inventory",
+    "InventoryImportPreviewToken",
     "InventoryGroup",
     "InventoryGroupChild",
     "InventoryGroupHost",
@@ -24,6 +25,7 @@ __all__ = [
     "Playbook",
     "PlaybookRevision",
     "Role",
+    "AuthLoginThrottle",
     "SystemConfiguration",
     "Template",
     "User",

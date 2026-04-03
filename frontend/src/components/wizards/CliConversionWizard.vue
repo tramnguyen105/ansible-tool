@@ -86,14 +86,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { defineAsyncComponent, ref, watch } from 'vue'
 
 import api from '../../api/client'
 import { useAppStore } from '../../stores/app'
-import YamlEditor from '../forms/YamlEditor.vue'
-
 const emit = defineEmits(['saved'])
 const app = useAppStore()
+const YamlEditor = defineAsyncComponent(() => import('../forms/YamlEditor.vue'))
 
 const step = ref(1)
 const configText = ref('')

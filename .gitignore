@@ -24,3 +24,11 @@ backend/alembic/__pycache__/
 frontend/.vite/
 frontend/coverage/
 *.log
+*.docx
+.codex*/
+backend/tests/test_app.db
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

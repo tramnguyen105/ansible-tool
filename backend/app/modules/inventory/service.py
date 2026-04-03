@@ -3,7 +3,6 @@ from __future__ import annotations
 import io
 import json
 import shlex
-import threading
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from hashlib import sha256
@@ -32,6 +31,8 @@ from app.modules.inventory.schemas import (
     InventoryImportPreview,
     InventoryImportPreviewRead,
     InventoryRead,
+    InventorySummaryStatsRead,
+    InventorySummaryListRead,
     InventorySummaryRead,
     InventoryUpdate,
     InventoryUsageRead,
@@ -55,10 +56,8 @@ class NormalizedGroup:
     variables: dict[str, Any] = field(default_factory=dict)
     children: set[str] = field(default_factory=set)
 
-
 _PREVIEW_TTL_MINUTES = 10
-_PREVIEW_CACHE: dict[str, dict[str, Any]] = {}
-_PREVIEW_CACHE_LOCK = threading.Lock()
+_READINESS_VALUES = {'ready', 'incomplete', 'disabled', 'review'}
 
 
 class InventoryService:
@@ -72,6 +71,38 @@ class InventoryService:
 
     def list_summary(self) -> list[InventorySummaryRead]:
         return [self._build_summary(item) for item in self.repository.list_summary()]
+
+    def list_summary_filtered(
+        self,
+        *,
+        search: str | None = None,
+        source_types: list[str] | None = None,
+        readiness: list[str] | None = None,
+        limit: int = 25,
+        offset: int = 0,
+        sort_by: str = 'name',
+        sort_order: str = 'asc',
+    ) -> InventorySummaryListRead:
+        self._validate_source_types(source_types)
+        self._validate_readiness(readiness)
+        items, total, stats = self.repository.list_summary_filtered(
+            search=search,
+            source_types=source_types,
+            readiness=readiness,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        serialized = [self._build_summary(item) for item in items]
+        return InventorySummaryListRead(
+            items=serialized,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=offset + len(serialized) < total,
+            stats=InventorySummaryStatsRead(**stats),
+        )
 
     def get(self, inventory_id: UUID) -> InventoryRead:
         inventory = self.repository.get(inventory_id)
@@ -200,7 +231,9 @@ class InventoryService:
 
         preview.source_format = source_format
         preview.warnings.append(f'Preview generated from {filename}')
-        return self._store_preview(preview)
+        stored_preview = self._store_preview(preview)
+        self.session.commit()
+        return stored_preview
 
     def create_from_preview(self, payload: InventoryImportCommit, *, user_id: UUID | None = None) -> InventoryRead:
         preview = self._resolve_preview(payload.preview_id, payload.checksum)
@@ -225,8 +258,8 @@ class InventoryService:
             user_id=user_id,
             details={'warnings': preview.warnings},
         )
-        self.session.commit()
         self._drop_preview(payload.preview_id)
+        self.session.commit()
         return self.get(inventory.id)
 
     def _persist_members(self, inventory: Inventory, hosts: list[InventoryHostInput], groups: list[InventoryGroupInput]) -> None:
@@ -348,17 +381,18 @@ class InventoryService:
         )
 
     def _store_preview(self, preview: InventoryImportPreview) -> InventoryImportPreviewRead:
-        preview_json = json.dumps(preview.model_dump(mode='json'), sort_keys=True, default=str)
+        preview_payload = preview.model_dump(mode='json')
+        preview_json = json.dumps(preview_payload, sort_keys=True, default=str)
         preview_id = str(uuid4())
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=_PREVIEW_TTL_MINUTES)
         checksum = sha256(preview_json.encode('utf-8')).hexdigest()
-        with _PREVIEW_CACHE_LOCK:
-            self._purge_previews()
-            _PREVIEW_CACHE[preview_id] = {
-                'preview': preview,
-                'checksum': checksum,
-                'expires_at': expires_at,
-            }
+        self._purge_previews()
+        self.repository.add_preview_token(
+            preview_id=preview_id,
+            checksum=checksum,
+            expires_at=expires_at,
+            payload_json=preview_payload,
+        )
         return InventoryImportPreviewRead(
             preview_id=preview_id,
             checksum=checksum,
@@ -367,23 +401,25 @@ class InventoryService:
         )
 
     def _resolve_preview(self, preview_id: str, checksum: str) -> InventoryImportPreview:
-        with _PREVIEW_CACHE_LOCK:
-            self._purge_previews()
-            cached = _PREVIEW_CACHE.get(preview_id)
-            if cached is None:
-                raise AppError(400, 'INVENTORY_PREVIEW_EXPIRED', 'Preview token is invalid or expired. Generate a new preview.')
-            if cached['checksum'] != checksum:
-                raise AppError(400, 'INVENTORY_PREVIEW_TAMPERED', 'Preview payload checksum mismatch. Generate a new preview.')
-            return cached['preview']
+        self._purge_previews()
+        token = self.repository.get_preview_token(preview_id)
+        if token is None:
+            raise AppError(400, 'INVENTORY_PREVIEW_EXPIRED', 'Preview token is invalid or expired. Generate a new preview.')
+        if token.checksum != checksum:
+            raise AppError(400, 'INVENTORY_PREVIEW_TAMPERED', 'Preview payload checksum mismatch. Generate a new preview.')
+        if token.expires_at < datetime.now(timezone.utc):
+            self.repository.delete_preview_token(token)
+            self.session.commit()
+            raise AppError(400, 'INVENTORY_PREVIEW_EXPIRED', 'Preview token is invalid or expired. Generate a new preview.')
+        return InventoryImportPreview.model_validate(token.payload_json)
 
     def _drop_preview(self, preview_id: str) -> None:
-        with _PREVIEW_CACHE_LOCK:
-            _PREVIEW_CACHE.pop(preview_id, None)
+        token = self.repository.get_preview_token(preview_id)
+        if token is not None:
+            self.repository.delete_preview_token(token)
 
     def _purge_previews(self) -> None:
-        now = datetime.now(timezone.utc)
-        for key in [item for item, cached in _PREVIEW_CACHE.items() if cached['expires_at'] < now]:
-            _PREVIEW_CACHE.pop(key, None)
+        self.repository.purge_expired_preview_tokens(now=datetime.now(timezone.utc))
 
     def _validate_upload(self, *, filename: str, raw_bytes: bytes, source_format: ImportFormat) -> None:
         if not raw_bytes:
@@ -403,6 +439,31 @@ class InventoryService:
                 400,
                 'INVENTORY_IMPORT_TYPE_MISMATCH',
                 f'File extension does not match selected format "{source_format}"',
+            )
+
+    def _validate_source_types(self, source_types: list[str] | None) -> None:
+        if not source_types:
+            return
+        allowed = {source.value for source in InventorySourceType}
+        invalid = sorted({item for item in source_types if item not in allowed})
+        if invalid:
+            raise AppError(
+                400,
+                'INVENTORY_SOURCE_TYPE_INVALID',
+                'One or more inventory source types are invalid',
+                {'invalid_values': invalid, 'allowed_values': sorted(allowed)},
+            )
+
+    def _validate_readiness(self, readiness: list[str] | None) -> None:
+        if not readiness:
+            return
+        invalid = sorted({item for item in readiness if item not in _READINESS_VALUES})
+        if invalid:
+            raise AppError(
+                400,
+                'INVENTORY_READINESS_INVALID',
+                'One or more readiness filters are invalid',
+                {'invalid_values': invalid, 'allowed_values': sorted(_READINESS_VALUES)},
             )
 
     def _serialize(self, inventory: Inventory) -> InventoryRead:

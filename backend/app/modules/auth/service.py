@@ -36,7 +36,6 @@ class LoginResult:
 
 
 class AuthService:
-    _login_attempts: dict[str, list[datetime]] = {}
     _max_attempts = 5
     _window_minutes = 10
 
@@ -45,31 +44,46 @@ class AuthService:
         self.repository = AuthRepository(session)
         self.audit = AuditService(session)
 
-    @classmethod
-    def _throttle_key(cls, username: str) -> str:
+    @staticmethod
+    def _throttle_key(username: str) -> str:
         return username.strip().lower()
 
-    @classmethod
-    def _ensure_not_rate_limited(cls, username: str) -> None:
-        key = cls._throttle_key(username)
+    def _ensure_not_rate_limited(self, username: str) -> None:
+        key = self._throttle_key(username)
         now = datetime.now(timezone.utc)
-        window_start = now - timedelta(minutes=cls._window_minutes)
-        attempts = [ts for ts in cls._login_attempts.get(key, []) if ts >= window_start]
-        cls._login_attempts[key] = attempts
-        if len(attempts) >= cls._max_attempts:
+        window_start = now - timedelta(minutes=self._window_minutes)
+        throttle = self.repository.get_login_throttle(key)
+        if throttle is None:
+            return
+        if throttle.last_attempt_at < window_start:
+            self.repository.delete_login_throttle(key)
+            return
+        if throttle.attempt_count >= self._max_attempts:
             raise AppError(429, 'AUTH_RATE_LIMITED', 'Too many failed login attempts. Please wait and try again.')
 
-    @classmethod
-    def _record_failed_attempt(cls, username: str) -> None:
-        key = cls._throttle_key(username)
+    def _record_failed_attempt(self, username: str) -> None:
+        key = self._throttle_key(username)
         now = datetime.now(timezone.utc)
-        attempts = cls._login_attempts.get(key, [])
-        attempts.append(now)
-        cls._login_attempts[key] = attempts[-cls._max_attempts * 4 :]
+        window_start = now - timedelta(minutes=self._window_minutes)
+        throttle = self.repository.get_login_throttle(key)
+        if throttle is None or throttle.last_attempt_at < window_start:
+            self.repository.upsert_login_throttle(
+                subject_key=key,
+                attempt_count=1,
+                window_started_at=now,
+                last_attempt_at=now,
+            )
+        else:
+            self.repository.upsert_login_throttle(
+                subject_key=key,
+                attempt_count=throttle.attempt_count + 1,
+                window_started_at=throttle.window_started_at,
+                last_attempt_at=now,
+            )
+        self.session.commit()
 
-    @classmethod
-    def _clear_failed_attempts(cls, username: str) -> None:
-        cls._login_attempts.pop(cls._throttle_key(username), None)
+    def _clear_failed_attempts(self, username: str) -> None:
+        self.repository.delete_login_throttle(self._throttle_key(username))
 
     def _effective_auth_config(self) -> dict[str, Any]:
         config = self.session.scalar(select(SystemConfiguration).where(SystemConfiguration.singleton_key == 'default'))

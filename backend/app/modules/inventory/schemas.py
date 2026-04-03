@@ -90,6 +90,23 @@ class InventorySummaryRead(ModelBase):
     readiness_note: str
 
 
+class InventorySummaryStatsRead(ModelBase):
+    inventories: int
+    hosts: int
+    enabled_hosts: int
+    groups: int
+    variable_bearing: int
+
+
+class InventorySummaryListRead(ModelBase):
+    items: list[InventorySummaryRead]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+    stats: InventorySummaryStatsRead
+
+
 class InventoryUsageRead(BaseModel):
     schedules_total: int = 0
     schedules_enabled: int = 0

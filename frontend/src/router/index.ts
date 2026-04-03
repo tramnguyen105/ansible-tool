@@ -2,19 +2,20 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import ConsoleLayout from '../layouts/ConsoleLayout.vue'
 import { useAuthStore } from '../stores/auth'
-import AuditLogsView from '../views/audit/AuditLogsView.vue'
-import LoginView from '../views/auth/LoginView.vue'
-import ConverterView from '../views/converter/ConverterView.vue'
-import CredentialsView from '../views/credentials/CredentialsView.vue'
-import DashboardView from '../views/dashboard/DashboardView.vue'
-import InventoryView from '../views/inventory/InventoryView.vue'
-import JobDetailView from '../views/jobs/JobDetailView.vue'
-import JobsView from '../views/jobs/JobsView.vue'
-import PlaybooksView from '../views/playbooks/PlaybooksView.vue'
-import SchedulesView from '../views/schedules/SchedulesView.vue'
-import SettingsView from '../views/SettingsView.vue'
-import TemplatesView from '../views/templates/TemplatesView.vue'
-import UsersView from '../views/users/UsersView.vue'
+
+const LoginView = () => import('../views/auth/LoginView.vue')
+const DashboardView = () => import('../views/dashboard/DashboardView.vue')
+const InventoryView = () => import('../views/inventory/InventoryView.vue')
+const CredentialsView = () => import('../views/credentials/CredentialsView.vue')
+const TemplatesView = () => import('../views/templates/TemplatesView.vue')
+const PlaybooksView = () => import('../views/playbooks/PlaybooksView.vue')
+const ConverterView = () => import('../views/converter/ConverterView.vue')
+const JobsView = () => import('../views/jobs/JobsView.vue')
+const JobDetailView = () => import('../views/jobs/JobDetailView.vue')
+const SchedulesView = () => import('../views/schedules/SchedulesView.vue')
+const AuditLogsView = () => import('../views/audit/AuditLogsView.vue')
+const UsersView = () => import('../views/users/UsersView.vue')
+const SettingsView = () => import('../views/SettingsView.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -43,7 +44,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  await auth.ensureSession()
+  await auth.ensureSession(!to.meta.public)
   if (!to.meta.public && !auth.isAuthenticated) {
     return '/login'
   }

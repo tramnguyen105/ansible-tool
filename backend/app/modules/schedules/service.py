@@ -17,7 +17,7 @@ from app.models.jobs import JobSchedule
 from app.modules.audit.service import AuditService
 from app.modules.jobs.service import JobService
 from app.modules.schedules.repository import ScheduleRepository
-from app.modules.schedules.schemas import ScheduleCreate, ScheduleRead, ScheduleUpdate
+from app.modules.schedules.schemas import ScheduleCreate, ScheduleListRead, ScheduleListSummaryRead, ScheduleRead, ScheduleUpdate
 
 
 class ScheduleService:
@@ -29,6 +29,36 @@ class ScheduleService:
     def list(self) -> list[ScheduleRead]:
         return [ScheduleRead.model_validate(item) for item in self.repository.list()]
 
+    def list_filtered(
+        self,
+        *,
+        search: str | None = None,
+        enabled: bool | None = None,
+        mode: str | None = None,
+        limit: int = 25,
+        offset: int = 0,
+        sort_by: str = 'next_run_at',
+        sort_order: str = 'asc',
+    ) -> ScheduleListRead:
+        items, total, summary = self.repository.list_filtered(
+            search=search,
+            enabled=enabled,
+            mode=mode,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        serialized = [ScheduleRead.model_validate(item) for item in items]
+        return ScheduleListRead(
+            items=serialized,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=offset + len(serialized) < total,
+            summary=ScheduleListSummaryRead(**summary),
+        )
+
     def get(self, schedule_id: UUID) -> ScheduleRead:
         schedule = self.repository.get(schedule_id)
         if schedule is None:
@@ -38,6 +68,7 @@ class ScheduleService:
     def create(self, payload: ScheduleCreate, *, user_id: UUID | None = None) -> ScheduleRead:
         if self.repository.get_by_name(payload.name):
             raise AppError(409, 'SCHEDULE_EXISTS', 'Schedule name already exists')
+        self._validate_targeting(payload.target_type, payload.target_value)
         self._validate_references(payload.inventory_id, payload.credential_id, payload.playbook_id, payload.pre_check_playbook_id, payload.post_check_playbook_id)
         next_run = self.compute_next_run(payload.cron_expression, payload.timezone)
         schedule = JobSchedule(
@@ -68,6 +99,7 @@ class ScheduleService:
             resource_id=str(schedule.id),
             message=f'Schedule {schedule.name} created',
             user_id=user_id,
+            details=self._audit_details(schedule),
         )
         self.session.commit()
         return ScheduleRead.model_validate(schedule)
@@ -88,6 +120,7 @@ class ScheduleService:
                     schedule.extra_vars_json = value
                 else:
                     setattr(schedule, field_name, value)
+        self._validate_targeting(schedule.target_type, schedule.target_value)
         self._validate_references(schedule.inventory_id, schedule.credential_id, schedule.playbook_id, schedule.pre_check_playbook_id, schedule.post_check_playbook_id)
         schedule.next_run_at = self.compute_next_run(schedule.cron_expression, schedule.timezone)
         schedule.updated_by_id = user_id
@@ -97,6 +130,7 @@ class ScheduleService:
             resource_id=str(schedule.id),
             message=f'Schedule {schedule.name} updated',
             user_id=user_id,
+            details=self._audit_details(schedule),
         )
         self.session.commit()
         return ScheduleRead.model_validate(schedule)
@@ -112,6 +146,7 @@ class ScheduleService:
             resource_id=str(schedule.id),
             message=f'Schedule {schedule.name} deleted',
             user_id=user_id,
+            details=self._audit_details(schedule),
         )
         self.session.commit()
 
@@ -154,6 +189,29 @@ class ScheduleService:
             raise AppError(404, 'PRECHECK_NOT_FOUND', 'Pre-check playbook not found')
         if post_check_playbook_id and self.session.get(Playbook, post_check_playbook_id) is None:
             raise AppError(404, 'POSTCHECK_NOT_FOUND', 'Post-check playbook not found')
+
+    def _validate_targeting(self, target_type: str | None, target_value: str | None) -> None:
+        allowed = {'all', 'hosts', 'groups'}
+        normalized_type = (target_type or 'all').strip().lower()
+        if normalized_type not in allowed:
+            raise AppError(400, 'TARGET_TYPE_INVALID', 'Target type must be all, hosts, or groups')
+        normalized_value = (target_value or '').strip()
+        if normalized_type != 'all' and not normalized_value:
+            raise AppError(400, 'TARGET_VALUE_REQUIRED', 'Target value is required when target type is hosts or groups')
+
+    def _audit_details(self, schedule: JobSchedule) -> dict:
+        return {
+            'inventory_id': str(schedule.inventory_id) if schedule.inventory_id else None,
+            'credential_id': str(schedule.credential_id) if schedule.credential_id else None,
+            'playbook_id': str(schedule.playbook_id) if schedule.playbook_id else None,
+            'target_type': schedule.target_type,
+            'target_value': schedule.target_value,
+            'check_mode': schedule.check_mode,
+            'enabled': schedule.enabled,
+            'cron_expression': schedule.cron_expression,
+            'timezone': schedule.timezone,
+            'next_run_at': schedule.next_run_at.isoformat() if schedule.next_run_at else None,
+        }
 
 
 @celery_app.task(name='app.modules.schedules.service.dispatch_due_schedules')

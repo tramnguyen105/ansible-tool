@@ -4,16 +4,27 @@
 
 :root {
   color-scheme: light;
-  font-size: 16.5px;
+  font-size: 16px;
+  --console-bg: #f3ede2;
+  --console-panel: rgba(255, 252, 245, 0.92);
+  --console-border: #d8cfc1;
+  --console-ink: #14213d;
+  --console-muted: #5c677d;
+  --console-accent: #0f766e;
+  --console-accent-strong: #115e59;
+  --console-warm: #d97706;
 }
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', 'IBM Plex Sans', sans-serif;
+  font-family: 'Aptos', 'IBM Plex Sans', 'Segoe UI', sans-serif;
   font-size: 0.98rem;
   line-height: 1.55;
-  background: #f8fafc;
-  color: #0f172a;
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(217, 119, 6, 0.08), transparent 22%),
+    linear-gradient(180deg, #f6f1e7 0%, #efe7d8 100%);
+  color: var(--console-ink);
 }
 
 button,
@@ -28,10 +39,21 @@ textarea,
 select {
   width: 100%;
   border-radius: 16px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #0f172a;
+  border: 1px solid var(--console-border);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--console-ink);
   padding: 0.9rem 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.65);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.14);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 input::placeholder,
@@ -49,16 +71,18 @@ button {
 
 .btn-primary {
   border-radius: 9999px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  background: linear-gradient(135deg, var(--console-accent) 0%, var(--console-accent-strong) 100%);
   padding: 0.8rem 1.2rem;
   color: white;
+  box-shadow: 0 12px 24px rgba(15, 118, 110, 0.18);
 }
 
 .btn-secondary {
   border-radius: 9999px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #1e293b;
+  border: 1px solid var(--console-border);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--console-ink);
   padding: 0.8rem 1.2rem;
 }
 
@@ -68,7 +92,7 @@ button {
   font-size: 0.84rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #475569;
+  color: var(--console-muted);
 }
 
 .pretty-scrollbar {

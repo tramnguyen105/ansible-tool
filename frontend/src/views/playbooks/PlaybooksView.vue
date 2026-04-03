@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
 import api from '../../api/client'
@@ -173,11 +173,11 @@ import DataTable from '../../components/common/DataTable.vue'
 import DrawerPanel from '../../components/common/DrawerPanel.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
-import YamlEditor from '../../components/forms/YamlEditor.vue'
 import { useAppStore } from '../../stores/app'
 import { formatDateTime } from '../../utils/format'
 
 const app = useAppStore()
+const YamlEditor = defineAsyncComponent(() => import('../../components/forms/YamlEditor.vue'))
 const rows = ref<any[]>([])
 const showDrawer = ref(false)
 const showDeleteConfirm = ref(false)
