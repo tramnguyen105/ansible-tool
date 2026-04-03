@@ -1,11 +1,11 @@
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-5">
     <div class="flex items-start justify-between gap-3">
-      <div>
+      <div class="min-w-0">
         <p class="text-[0.8rem] font-medium uppercase tracking-[0.12em] text-slate-500">{{ label }}</p>
         <p class="mt-3 text-[2rem] font-semibold text-slate-900">{{ value }}</p>
       </div>
-      <span class="rounded-full px-2.5 py-1 text-[0.72rem] font-medium uppercase tracking-[0.1em]" :class="toneClass">{{ tone }}</span>
+      <span class="shrink-0 rounded-full px-2.5 py-1 text-[0.72rem] font-medium uppercase tracking-[0.1em]" :class="toneClass">{{ tone }}</span>
     </div>
     <p v-if="helper" class="mt-3 text-[0.96rem] leading-7 text-slate-600">{{ helper }}</p>
   </section>

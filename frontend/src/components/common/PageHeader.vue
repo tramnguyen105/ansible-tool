@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
-    <div>
+    <div class="min-w-0">
       <p v-if="eyebrow" class="text-[0.8rem] font-medium uppercase tracking-[0.14em] text-slate-500">{{ eyebrow }}</p>
       <h2 class="mt-2 text-[1.75rem] font-semibold text-slate-900">{{ title }}</h2>
       <p v-if="description" class="mt-2 max-w-3xl text-[0.98rem] leading-7 text-slate-600">{{ description }}</p>

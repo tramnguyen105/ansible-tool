@@ -3,17 +3,15 @@
     <PageHeader
       title="Settings"
       eyebrow="Configuration"
-      description="Manage personal preferences and platform-wide controls for LDAP, password reset, and SNMP."
+      description="Manage your personal defaults and platform-wide LDAP/SNMP controls from a cleaner, role-focused view."
     >
-      <button class="btn-secondary" :disabled="isLoading" @click="copyDiagnostics">{{ isLoading ? 'Loading...' : 'Copy diagnostics' }}</button>
-      <button class="btn-secondary" :disabled="isLoading" @click="exportDiagnostics">Export JSON</button>
       <button class="btn-primary" :disabled="isLoading" @click="load">{{ isLoading ? 'Refreshing...' : 'Refresh' }}</button>
     </PageHeader>
 
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <CardStat label="Application" :value="settings.runtime?.app_name || settings.app_name || 'n/a'" tone="identity" helper="Runtime application identifier." />
-      <CardStat label="Environment" :value="settings.runtime?.environment || settings.environment || 'n/a'" tone="runtime" helper="Treat production as change-controlled." />
-      <CardStat label="Risk level" :value="(settings.risk_level || 'unknown').toUpperCase()" :tone="riskTone" helper="Computed from runtime warnings and health checks." />
+    <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <CardStat label="Application" :value="settings.runtime.app_name || 'n/a'" tone="identity" helper="Runtime application identifier." />
+      <CardStat label="Environment" :value="settings.runtime.environment || 'n/a'" tone="runtime" helper="Treat production as change-controlled." />
+      <CardStat label="Risk level" :value="(settings.risk_level || 'unknown').toUpperCase()" :tone="riskTone" helper="Computed from runtime warnings and dependency checks." />
       <CardStat label="Warnings" :value="warningCount" tone="failed" :helper="warningCount ? 'Address high-severity warnings first.' : 'No warnings reported.'" />
     </div>
 
@@ -22,13 +20,13 @@
         v-if="settings.risk_level === 'high'"
         title="High Risk"
         tone="error"
-        text="Configuration risks detected. Review warnings and avoid production job runs until remediated."
+        text="Configuration risks detected. Resolve warnings before high-impact automation runs."
       />
       <BannerNotice
         v-else-if="settings.risk_level === 'medium'"
         title="Medium Risk"
         tone="warn"
-        text="Non-blocking risks detected. Review warnings before high-impact automation."
+        text="Non-blocking risks detected. Review warnings before changing execution behavior."
       />
       <BannerNotice
         v-else
@@ -40,8 +38,8 @@
 
     <div class="mt-6 grid gap-6 xl:grid-cols-2">
       <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-5">
-        <div class="flex items-start justify-between gap-4">
-          <div>
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="min-w-0">
             <p class="text-xs uppercase tracking-[0.2em] text-console-muted">User Preferences</p>
             <h3 class="mt-2 text-lg font-semibold text-slate-900">Personal defaults</h3>
           </div>
@@ -83,13 +81,37 @@
             </span>
           </label>
         </div>
+
+        <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-slate-900">Password reset</p>
+              <p class="mt-1 text-xs text-slate-600">Reset password for the current local account.</p>
+            </div>
+            <button class="btn-secondary" :disabled="isSavingPassword" @click="savePasswordReset">{{ isSavingPassword ? 'Updating...' : 'Update password' }}</button>
+          </div>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <label class="sm:col-span-2">
+              <span class="field-label">Current password</span>
+              <input v-model="passwordForm.current_password" type="password" autocomplete="current-password" :disabled="isSavingPassword" />
+            </label>
+            <label>
+              <span class="field-label">New password</span>
+              <input v-model="passwordForm.new_password" type="password" autocomplete="new-password" :disabled="isSavingPassword" />
+            </label>
+            <label>
+              <span class="field-label">Confirm new password</span>
+              <input v-model="passwordForm.confirm_password" type="password" autocomplete="new-password" :disabled="isSavingPassword" />
+            </label>
+          </div>
+        </div>
       </section>
 
       <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-5">
-        <div class="flex items-start justify-between gap-4">
-          <div>
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="min-w-0">
             <p class="text-xs uppercase tracking-[0.2em] text-console-muted">System-wide Settings</p>
-            <h3 class="mt-2 text-lg font-semibold text-slate-900">LDAP, password reset, SNMP</h3>
+            <h3 class="mt-2 text-lg font-semibold text-slate-900">LDAP and SNMP controls</h3>
           </div>
           <button class="btn-primary" :disabled="isSavingSystem" @click="saveSystemWide">{{ isSavingSystem ? 'Saving...' : 'Save system settings' }}</button>
         </div>
@@ -158,30 +180,6 @@
           </div>
 
           <div class="rounded-xl border border-console-edge/80 p-4">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <p class="text-sm font-semibold text-slate-900">Password reset</p>
-                <p class="mt-1 text-xs text-console-muted">Reset password for current local account.</p>
-              </div>
-              <button class="btn-secondary" :disabled="isSavingPassword" @click="savePasswordReset">{{ isSavingPassword ? 'Updating...' : 'Update password' }}</button>
-            </div>
-            <div class="mt-3 grid gap-3 sm:grid-cols-2">
-              <label class="sm:col-span-2">
-                <span class="field-label">Current password</span>
-                <input v-model="passwordForm.current_password" type="password" autocomplete="current-password" :disabled="isSavingPassword" />
-              </label>
-              <label>
-                <span class="field-label">New password</span>
-                <input v-model="passwordForm.new_password" type="password" autocomplete="new-password" :disabled="isSavingPassword" />
-              </label>
-              <label>
-                <span class="field-label">Confirm new password</span>
-                <input v-model="passwordForm.confirm_password" type="password" autocomplete="new-password" :disabled="isSavingPassword" />
-              </label>
-            </div>
-          </div>
-
-          <div class="rounded-xl border border-console-edge/80 p-4">
             <p class="text-sm font-semibold text-slate-900">SNMP settings</p>
             <div class="mt-3 grid gap-3 sm:grid-cols-2">
               <label class="setting-row sm:col-span-2" :class="{ 'is-disabled': isSavingSystem }">
@@ -224,42 +222,47 @@
       </section>
     </div>
 
-    <div class="mt-6 grid gap-6 xl:grid-cols-2">
-      <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-5">
-        <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Runtime integrations</p>
-        <div class="mt-4 space-y-2 text-sm">
-          <p><strong>Database:</strong> {{ settings.integrations?.database_driver || 'n/a' }} @ {{ settings.integrations?.database_host || 'n/a' }}</p>
-          <p><strong>Redis:</strong> {{ settings.integrations?.redis_host || 'n/a' }} (db {{ settings.integrations?.redis_db ?? 'n/a' }})</p>
-          <p><strong>Runner data dir:</strong> {{ settings.execution?.runner_data_dir || 'n/a' }}</p>
-          <p><strong>Artifact retention:</strong> {{ settings.execution?.artifact_retention_days ?? 'n/a' }} days</p>
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-5">
-        <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Dependency health</p>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <HealthChip label="Database" :ok="settings.health?.db_ready" :detail="settings.health?.db_detail" />
-          <HealthChip label="Redis" :ok="settings.health?.redis_ready" :detail="settings.health?.redis_detail" />
-          <HealthChip label="Runner path" :ok="settings.health?.runner_path_writable" :detail="settings.health?.runner_detail" />
-          <HealthChip label="Celery worker" :ok="settings.health?.celery_worker_online" :detail="settings.health?.celery_detail" />
-        </div>
-      </section>
-    </div>
-
     <section class="mt-6 rounded-3xl border border-console-edge bg-console-panel/80 p-5 shadow-xl shadow-slate-300/25">
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
+        <div class="min-w-0">
           <p class="text-xs uppercase tracking-[0.22em] text-console-glow">Runtime posture</p>
-          <h3 class="mt-2 text-xl font-semibold text-slate-900">Warnings and recommendations</h3>
+          <h3 class="mt-2 text-xl font-semibold text-slate-900">Warnings and diagnostics</h3>
+          <p class="mt-1 text-sm text-console-muted">Generated at: {{ generatedAtLabel }}</p>
         </div>
-        <p class="text-sm text-console-muted">Generated at: {{ generatedAtLabel }}</p>
+        <div class="flex flex-wrap gap-2">
+          <button class="btn-secondary" :disabled="isLoading" @click="copyDiagnostics">Copy diagnostics</button>
+          <button class="btn-secondary" :disabled="isLoading" @click="exportDiagnostics">Export JSON</button>
+        </div>
       </div>
-      <div class="mt-4 space-y-3">
+
+      <div class="mt-5 grid gap-6 xl:grid-cols-2">
+        <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Runtime integrations</p>
+          <div class="mt-3 space-y-2 text-sm">
+            <p><strong>Database:</strong> {{ settings.integrations.database_driver || 'n/a' }} @ {{ settings.integrations.database_host || 'n/a' }}</p>
+            <p><strong>Redis:</strong> {{ settings.integrations.redis_host || 'n/a' }} (db {{ settings.integrations.redis_db ?? 'n/a' }})</p>
+            <p><strong>Runner data dir:</strong> {{ settings.execution.runner_data_dir || 'n/a' }}</p>
+            <p><strong>Artifact retention:</strong> {{ settings.execution.artifact_retention_days ?? 'n/a' }} days</p>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-console-edge bg-console-panel/70 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-console-muted">Dependency health</p>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <HealthChip label="Database" :ok="settings.health.db_ready" :detail="settings.health.db_detail" />
+            <HealthChip label="Redis" :ok="settings.health.redis_ready" :detail="settings.health.redis_detail" />
+            <HealthChip label="Runner path" :ok="settings.health.runner_path_writable" :detail="settings.health.runner_detail" />
+            <HealthChip label="Celery worker" :ok="settings.health.celery_worker_online" :detail="settings.health.celery_detail" />
+          </div>
+        </section>
+      </div>
+
+      <div class="mt-5 space-y-3">
         <div v-if="!warningCount" class="rounded-2xl border border-emerald-500/30 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           No warnings returned by runtime posture checks.
         </div>
         <div
-          v-for="warning in settings.warnings || []"
+          v-for="warning in settings.warnings"
           :key="warning.code"
           class="rounded-2xl border px-4 py-3 text-sm"
           :class="warning.severity === 'high' ? 'border-rose-500/40 bg-rose-50 text-rose-700' : 'border-amber-500/40 bg-amber-50 text-amber-700'"
@@ -274,7 +277,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 import api from '../api/client'
 import BannerNotice from '../components/common/BannerNotice.vue'
@@ -282,6 +285,78 @@ import CardStat from '../components/common/CardStat.vue'
 import PageHeader from '../components/common/PageHeader.vue'
 import { useAppStore } from '../stores/app'
 import { formatDateTime } from '../utils/format'
+
+type SystemWarning = {
+  severity: string
+  code: string
+  message: string
+  recommendation: string
+}
+
+type SettingsPayload = {
+  app_name: string
+  environment: string
+  ldap_enabled: boolean
+  allow_local_auth: boolean
+  session_ttl_minutes: number
+  generated_at: string
+  risk_level: string
+  warnings: SystemWarning[]
+  runtime: {
+    app_name: string
+    environment: string
+    api_prefix: string
+    log_level: string
+  }
+  execution: {
+    runner_data_dir: string
+    artifact_retention_days: number
+  }
+  integrations: {
+    database_host: string
+    database_driver: string
+    redis_host: string
+    redis_db: number
+  }
+  health: {
+    db_ready: boolean
+    redis_ready: boolean
+    runner_path_writable: boolean
+    celery_worker_online: boolean
+    db_detail: string | null
+    redis_detail: string | null
+    runner_detail: string | null
+    celery_detail: string | null
+  }
+  user_preferences: {
+    timezone: string
+    date_format: string
+    time_format: string
+    auto_refresh_seconds: number
+    show_relative_time: boolean
+  }
+  system_wide: {
+    ldap: {
+      enabled: boolean
+      server_uri: string
+      use_ssl: boolean
+      bind_dn: string | null
+      search_base: string | null
+      search_filter: string
+      username_attribute: string
+      user_dn_template: string | null
+      allow_local_auth: boolean
+    }
+    snmp: {
+      enabled: boolean
+      version: string
+      default_port: number
+      timeout_seconds: number
+      retries: number
+      trap_target: string | null
+    }
+  }
+}
 
 const HealthChip = {
   props: {
@@ -298,12 +373,77 @@ const HealthChip = {
 }
 
 const app = useAppStore()
-const settings = reactive<any>({})
-const isSavingUser = computed(() => settings.__savingUser === true)
-const isSavingSystem = computed(() => settings.__savingSystem === true)
-const isSavingPassword = computed(() => settings.__savingPassword === true)
-const isLoading = computed(() => settings.__loading === true)
-const warningCount = computed(() => (settings.warnings || []).length)
+const settings = reactive<SettingsPayload>({
+  app_name: '',
+  environment: '',
+  ldap_enabled: false,
+  allow_local_auth: false,
+  session_ttl_minutes: 0,
+  generated_at: '',
+  risk_level: 'low',
+  warnings: [],
+  runtime: {
+    app_name: '',
+    environment: '',
+    api_prefix: '',
+    log_level: '',
+  },
+  execution: {
+    runner_data_dir: '',
+    artifact_retention_days: 0,
+  },
+  integrations: {
+    database_host: '',
+    database_driver: '',
+    redis_host: '',
+    redis_db: 0,
+  },
+  health: {
+    db_ready: false,
+    redis_ready: false,
+    runner_path_writable: false,
+    celery_worker_online: false,
+    db_detail: null,
+    redis_detail: null,
+    runner_detail: null,
+    celery_detail: null,
+  },
+  user_preferences: {
+    timezone: 'UTC',
+    date_format: 'YYYY-MM-DD',
+    time_format: '24h',
+    auto_refresh_seconds: 30,
+    show_relative_time: true,
+  },
+  system_wide: {
+    ldap: {
+      enabled: true,
+      server_uri: 'ldap://ldap.example.internal',
+      use_ssl: false,
+      bind_dn: null,
+      search_base: null,
+      search_filter: '(sAMAccountName={username})',
+      username_attribute: 'sAMAccountName',
+      user_dn_template: null,
+      allow_local_auth: true,
+    },
+    snmp: {
+      enabled: false,
+      version: 'v2c',
+      default_port: 161,
+      timeout_seconds: 3,
+      retries: 2,
+      trap_target: null,
+    },
+  },
+})
+
+const isLoading = ref(false)
+const isSavingUser = ref(false)
+const isSavingSystem = ref(false)
+const isSavingPassword = ref(false)
+
+const warningCount = computed(() => settings.warnings.length)
 const riskTone = computed(() => {
   if (settings.risk_level === 'high') return 'failed'
   if (settings.risk_level === 'medium') return 'runtime'
@@ -341,28 +481,22 @@ const systemForm = reactive({
     trap_target: '',
   },
 })
+
 const passwordForm = reactive({
   current_password: '',
   new_password: '',
   confirm_password: '',
 })
 
-watchEffect(() => {
-  if (settings.__loading == null) settings.__loading = false
-  if (settings.__savingUser == null) settings.__savingUser = false
-  if (settings.__savingSystem == null) settings.__savingSystem = false
-  if (settings.__savingPassword == null) settings.__savingPassword = false
-})
-
 function hydrateForms() {
-  const user = settings.user_preferences || {}
+  const user = settings.user_preferences
   userForm.timezone = user.timezone || 'UTC'
   userForm.date_format = user.date_format || 'YYYY-MM-DD'
   userForm.time_format = user.time_format || '24h'
   userForm.auto_refresh_seconds = Number(user.auto_refresh_seconds || 30)
   userForm.show_relative_time = user.show_relative_time !== false
 
-  const ldap = settings.system_wide?.ldap || {}
+  const ldap = settings.system_wide.ldap
   systemForm.ldap.enabled = ldap.enabled !== false
   systemForm.ldap.server_uri = ldap.server_uri || 'ldap://ldap.example.internal'
   systemForm.ldap.use_ssl = !!ldap.use_ssl
@@ -373,7 +507,7 @@ function hydrateForms() {
   systemForm.ldap.user_dn_template = ldap.user_dn_template || ''
   systemForm.ldap.allow_local_auth = ldap.allow_local_auth !== false
 
-  const snmp = settings.system_wide?.snmp || {}
+  const snmp = settings.system_wide.snmp
   systemForm.snmp.enabled = !!snmp.enabled
   systemForm.snmp.version = snmp.version || 'v2c'
   systemForm.snmp.default_port = Number(snmp.default_port || 161)
@@ -383,7 +517,7 @@ function hydrateForms() {
 }
 
 async function load() {
-  settings.__loading = true
+  isLoading.value = true
   try {
     const response = await api.get('/system/settings')
     Object.assign(settings, response.data.data)
@@ -391,12 +525,12 @@ async function load() {
   } catch {
     app.pushToast('System settings could not be loaded', 'error')
   } finally {
-    settings.__loading = false
+    isLoading.value = false
   }
 }
 
 async function saveUserPreferences() {
-  settings.__savingUser = true
+  isSavingUser.value = true
   try {
     const payload = {
       timezone: userForm.timezone.trim(),
@@ -411,12 +545,12 @@ async function saveUserPreferences() {
   } catch (error: any) {
     app.pushToast(error?.response?.data?.message || 'Unable to save user preferences', 'error')
   } finally {
-    settings.__savingUser = false
+    isSavingUser.value = false
   }
 }
 
 async function saveSystemWide() {
-  settings.__savingSystem = true
+  isSavingSystem.value = true
   try {
     const payload = {
       ldap: {
@@ -447,7 +581,7 @@ async function saveSystemWide() {
   } catch (error: any) {
     app.pushToast(error?.response?.data?.message || 'Unable to save system-wide settings', 'error')
   } finally {
-    settings.__savingSystem = false
+    isSavingSystem.value = false
   }
 }
 
@@ -465,7 +599,7 @@ async function savePasswordReset() {
     return
   }
 
-  settings.__savingPassword = true
+  isSavingPassword.value = true
   try {
     await api.post('/auth/change-password', {
       current_password: passwordForm.current_password,
@@ -478,7 +612,7 @@ async function savePasswordReset() {
   } catch (error: any) {
     app.pushToast(error?.response?.data?.message || 'Unable to update password', 'error')
   } finally {
-    settings.__savingPassword = false
+    isSavingPassword.value = false
   }
 }
 
@@ -520,6 +654,8 @@ onMounted(load)
 
 .setting-copy {
   min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .setting-title {
@@ -544,6 +680,7 @@ onMounted(load)
   justify-content: center;
   width: 2.25rem;
   min-width: 2.25rem;
+  flex-shrink: 0;
 }
 
 .switch input {
